@@ -35,6 +35,14 @@ public class Project {
     @Column(name = "area_segmento")
     private String areaSegmento;
 
+    @ManyToOne(optional = false)
+    @JoinColumn(name = "orgao_financiador_id", nullable = false, foreignKey = @ForeignKey(name = "fk_project_orgao_financiador"))
+    private Organization orgaoFinancioador;
+
+    @ManyToOne(optional = false)
+    @JoinColumn(name = "executing_org_id", nullable = false, foreignKey = @ForeignKey(name = "fk_project_executing_org"))
+    private Organization executingOrg;
+
     @Column(name = "cordinator")
     private String cordinator;
 
