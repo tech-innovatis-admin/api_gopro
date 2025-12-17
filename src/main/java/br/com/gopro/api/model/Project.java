@@ -9,6 +9,7 @@ import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Entity
@@ -53,13 +54,13 @@ public class Project {
     private BigDecimal contractValue;
 
     @Column(name = "start_date")
-    private LocalDateTime startDate;
+    private LocalDate startDate;
 
     @Column(name = "end_date")
-    private LocalDateTime endDate;
+    private LocalDate endDate;
 
     @Column(name = "opening_date")
-    private LocalDateTime openingDate;
+    private LocalDate openingDate;
 
     @Column(name = "execution_location")
     private String executionLocation;
