@@ -43,6 +43,7 @@ public class Document {
     @Column(name = "uploaded_at")
     private LocalDateTime UploadedAt;
 
+    @Column(name = "uploaded_by")
     private Long UploadedBy;
 
     @Column(name = "file_size")
