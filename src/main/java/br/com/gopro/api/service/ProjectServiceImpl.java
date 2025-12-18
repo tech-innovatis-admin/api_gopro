@@ -51,6 +51,7 @@ public class ProjectServiceImpl implements ProjectService{
         return projectMapper.toDTO(project);
     }
 
+    @Transactional
     @Override
     public ProjectResponseDTO updateProject(Long id, ProjectRequestDTO dto) {
         Project project = projectRepository.findById(id)
@@ -77,6 +78,7 @@ public class ProjectServiceImpl implements ProjectService{
         return projectMapper.toDTO(project);
     }
 
+    @Transactional
     @Override
     public void deleteProject(Long id) {
         if (!projectRepository.existsById(id)) {
