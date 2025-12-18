@@ -7,7 +7,7 @@ import java.util.List;
 
 public interface ProjectService {
 
-    ProjectResponseDTO createProjec(ProjectRequestDTO dto);
+    ProjectResponseDTO createProject(ProjectRequestDTO dto);
     List<ProjectResponseDTO> listAllProducts();
     ProjectResponseDTO listProjectById(Long id);
     ProjectResponseDTO updateProject(Long id, ProjectRequestDTO dto);

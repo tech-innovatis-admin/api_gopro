@@ -24,7 +24,7 @@ public class ProjectServiceImpl implements ProjectService{
     private final ProjectMapper projectMapper;
 
     @Override
-    public ProjectResponseDTO createProjec(ProjectRequestDTO dto) {
+    public ProjectResponseDTO createProject(ProjectRequestDTO dto) {
         Project project = projectMapper.toEntity(dto);
 
         project.setOrgaoFinancioador(findOrganization(dto.orgaoFinanciador()));
