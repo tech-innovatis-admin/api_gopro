@@ -7,6 +7,7 @@ import br.com.gopro.api.model.Organization;
 import br.com.gopro.api.model.Project;
 import br.com.gopro.api.repository.OrganizationRepository;
 import br.com.gopro.api.repository.ProjectRepository;
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -77,9 +78,15 @@ public class ProjectServiceImpl implements ProjectService{
     }
 
     @Override
-    public ProjectResponseDTO deleteProject(Long id) {
-        return null;
+    public void deleteProject(Long id) {
+        if (!projectRepository.existsById(id)) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND,
+                    "Projeto não encontrado!");
+        }
+
+        projectRepository.deleteById(id);
     }
+
 
     private Organization findOrganization(Long id){
         return organizationRepository.findById(id)
