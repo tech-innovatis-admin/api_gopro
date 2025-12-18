@@ -36,7 +36,7 @@ public class ProjectServiceImpl implements ProjectService{
     }
 
     @Override
-    public List<ProjectResponseDTO> listAllProducts() {
+    public List<ProjectResponseDTO> listAllProjects() {
         return projectRepository.findAll().stream()
                 .map(projectMapper::toDTO)
                 .toList();
