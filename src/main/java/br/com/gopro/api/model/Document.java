@@ -40,6 +40,7 @@ public class Document {
     @Column(name = "content_type")
     private ContentTypEnum contentType;
 
+    @CreationTimestamp
     @Column(name = "uploaded_at")
     private LocalDateTime UploadedAt;
 
