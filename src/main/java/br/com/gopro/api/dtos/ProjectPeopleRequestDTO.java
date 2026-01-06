@@ -18,6 +18,8 @@ public record ProjectPeopleRequestDTO(
         @NotBlank(message = "Cargo da pessoa é obrigatório")
         RoleProjectPeopleEnum roleProjectPeople,
 
+        LocalDate starteDate,
+
         @NotBlank(message = "Status do projeto é obrigatório")
         StatusProjectPeopleEnum statusProjectPeople,
 
