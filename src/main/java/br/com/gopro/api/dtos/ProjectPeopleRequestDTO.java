@@ -13,7 +13,7 @@ public record ProjectPeopleRequestDTO(
         Long project,
 
         @NotNull(message = "ID da pessoa é obrigatório")
-        Long People,
+        Long people,
 
         @NotBlank(message = "Cargo da pessoa é obrigatório")
         RoleProjectPeopleEnum roleProjectPeople,
