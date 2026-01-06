@@ -33,7 +33,7 @@ public class ProjectController {
         return ResponseEntity.ok(projectService.listProjectById(id));
     }
 
-    @PutMapping("/id")
+    @PutMapping("/{id}")
     public ResponseEntity<ProjectResponseDTO> updateProjectById(
             @PathVariable Long id,
             @Valid @RequestBody ProjectRequestDTO dto
@@ -42,7 +42,7 @@ public class ProjectController {
         return ResponseEntity.ok(projectUpdated);
     }
 
-    @DeleteMapping("/id")
+    @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteProject(@PathVariable Long id) {
         projectService.deleteProject(id);
         return ResponseEntity.noContent().build();
