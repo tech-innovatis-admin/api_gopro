@@ -33,8 +33,8 @@ public class ProjectPeople {
     private People people;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "cargo_project_people", nullable = false)
-    private RoleProjectPeopleEnum cargoProjectPeople;
+    @Column(name = "role_project_people", nullable = false)
+    private RoleProjectPeopleEnum roleProjectPeople;
 
     @Column(name = "start_date")
     private LocalDate startDate;
