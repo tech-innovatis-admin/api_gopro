@@ -10,7 +10,10 @@ import org.mapstruct.Mapping;
 public interface DocumentMapper {
 
     @Mapping(target = "id", ignore = true)
+    // o campo 'project' será preenchido manualmente no serviço (DocumentServiceImpl)
+    @Mapping(target = "project", ignore = true)
     Document toEntity(DocumentRequestDTO dto);
 
+    @Mapping(target = "project", source = "project.id")
     DocumentResponseDTO toDTO(Document document);
 }

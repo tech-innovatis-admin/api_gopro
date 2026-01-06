@@ -10,7 +10,12 @@ import org.mapstruct.Mapping;
 public interface ProjectMapper {
 
     @Mapping(target = "id", ignore = true)
+    // estes relacionamentos são resolvidos manualmente em ProjectServiceImpl
+    @Mapping(target = "orgaoFinancioador", ignore = true)
+    @Mapping(target = "executingOrg", ignore = true)
     Project toEntity(ProjectRequestDTO dto);
 
+    @Mapping(target = "orgaoFinanciador", source = "orgaoFinancioador.id")
+    @Mapping(target = "executionOrg", source = "executingOrg.id")
     ProjectResponseDTO toDTO(Project project);
 }
