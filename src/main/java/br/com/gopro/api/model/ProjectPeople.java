@@ -62,7 +62,7 @@ public class ProjectPeople {
 
     @Column(name = "created_by", nullable = false, updatable = false)
     private Long createdBy;
-
+    
     @Column(name = "updated_by")
     private Long updatedBy;
 }
