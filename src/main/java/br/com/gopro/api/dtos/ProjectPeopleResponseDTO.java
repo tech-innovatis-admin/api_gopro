@@ -10,7 +10,7 @@ import java.time.LocalDateTime;
 public record ProjectPeopleResponseDTO(
         Long id,
         Long project,
-        Long People,
+        Long people,
         RoleProjectPeopleEnum roleProjectPeople,
         LocalDate startDate,
         LocalDate endDate,
