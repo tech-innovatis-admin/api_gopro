@@ -7,7 +7,7 @@ import java.time.LocalDateTime;
 public record BudgetItemResponseDTO(
         Long id,
         Long project,
-        Long BudgetCategories,
+        Long budgetCategories,
         String description,
         Integer quantity,
         BigDecimal unitCost,

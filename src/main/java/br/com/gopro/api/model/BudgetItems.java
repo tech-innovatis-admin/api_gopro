@@ -38,7 +38,7 @@ public class BudgetItems {
     @Column(name = "unit_cost", precision = 15, scale = 2)
     private BigDecimal unitCost;
 
-    @Column(name = "palnned_amount", precision = 15, scale = 2)
+    @Column(name = "planned_amount", precision = 15, scale = 2)
     private BigDecimal plannedAmount;
 
     @Column(name = "executed_amount", precision = 15, scale = 2)

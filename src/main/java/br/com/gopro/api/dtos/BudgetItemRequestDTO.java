@@ -7,7 +7,7 @@ import java.math.BigDecimal;
 public record BudgetItemRequestDTO(
         @NotNull(message = "Id do projeto é obrigatório")
         Long project,
-        @NotNull(message = "Id do BudgetCategories é obrigatório")
+        @NotNull(message = "Id do budgetCategories é obrigatório")
         Long BudgetCategories,
         String description,
         Integer quantity,
