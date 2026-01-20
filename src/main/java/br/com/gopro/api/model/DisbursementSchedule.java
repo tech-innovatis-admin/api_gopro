@@ -1,0 +1,56 @@
+package br.com.gopro.api.model;
+
+import br.com.gopro.api.enums.StatusDisbursementScheduleEnum;
+import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
+
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+
+@Entity
+@Table(name = "disbursement_schedule")
+@Data
+@AllArgsConstructor
+@NoArgsConstructor
+public class DisbursementSchedule {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @ManyToOne(optional = false)
+    @JoinColumn(name = "project_id", nullable = false, foreignKey = @ForeignKey(name = "fk_disbursement_schedule_project_id"))
+    private Project project;
+
+    @Column(name = "expected_month", nullable = false)
+    private LocalDate expectedMonth;
+
+    @Column(name = "expected_amount", precision = 15, scale = 2, nullable = false)
+    private BigDecimal expectedAmount;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status_disbursement_schedule", nullable = false)
+    private StatusDisbursementScheduleEnum statusDisbursementSchedule;
+
+    @Column(name = "notes", length = 500)
+    private String notes;
+
+    @CreationTimestamp
+    @Column(name = "created_at", updatable = false)
+    private LocalDateTime createdAt;
+
+    @UpdateTimestamp
+    @Column(name = "updated_at")
+    private LocalDateTime updatedAt;
+
+    @Column(name = "created_by", updatable = false)
+    private Long createdBy;
+
+    @Column(name = "updated_by")
+    private Long updatedBy;
+}
