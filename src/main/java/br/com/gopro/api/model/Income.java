@@ -30,6 +30,9 @@ public class Income {
     @JoinColumn(name = "disbursement_schedule_id", nullable = false, foreignKey = @ForeignKey(name = "fk_income_disbursement_schedule_id"))
     private  DisbursementSchedule disbursementSchedule;
 
+    @Column(name = "installment", nullable = false)
+    private Integer installment;
+
     @Column(name = "amount", precision = 15, scale = 2, nullable = false)
     private BigDecimal amount;
 
