@@ -54,7 +54,7 @@ public class BudgetTransfer {
     private String reason;
 
     @ManyToOne(optional = false)
-    @JoinColumn(name = "budget_transfer_id")
+    @JoinColumn(name = "document_id")
     private Document document;
 
     @CreationTimestamp
