@@ -1,4 +1,4 @@
-package br.com.gopro.api.mapper;
+package br.com.gopro.api.repository;
 
 import br.com.gopro.api.model.BudgetTransfer;
 import org.springframework.data.jpa.repository.JpaRepository;
