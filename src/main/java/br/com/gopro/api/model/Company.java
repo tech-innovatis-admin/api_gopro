@@ -7,59 +7,52 @@ import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "peoples")
+@Table(name = "companies")
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-public class People {
+public class Company {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "full_name", nullable = false)
-    private String fullName;
+    @Column(name = "name", length = 100, nullable = false)
+    private String name;
 
-    @Column(name = "cpf", unique = true, length = 14)
-    private String cpf;
+    @Column(name = "trade_name", length = 100, nullable = false)
+    private String tradeName;
 
-    @Column(name = "email")
+    @Column(name = "cnpj", nullable = false, unique = true, length = 14)
+    private String cnpj;
+
+    @Column(name = "email", nullable = false)
     private String email;
 
-    @Column(name = "phone", length = 50)
+    @Column(name = "phone", length = 50, nullable = false)
     private String phone;
 
-    @Column(name = "avatar_url", length = 500)
-    private String avatarUrl;
-
-    @Column(name = "birth_date")
-    private LocalDate birthDate;
-
-    @Column(name = "address", length = 500)
+    @Column(name = "address", length = 400, nullable = false)
     private String address;
 
-    @Column(name = "zip_code", length = 20)
-    private String zipCode;
-
-    @Column(name = "city", length = 100)
+    @Column(name = "city", length = 100, nullable = false)
     private String city;
 
-    @Column(name = "state", length = 50)
+    @Column(name = "state", length = 50, nullable = false)
     private String state;
 
-    @Column(name = "notes", length = 500)
-    private String notes;
+    @Column(name = "is_active", nullable = false)
+    private Short isActive;
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
 
     @UpdateTimestamp
-    @Column(name = "update_at")
+    @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
     @Column(name = "created_by")
