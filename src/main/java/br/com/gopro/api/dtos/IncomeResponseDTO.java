@@ -1,4 +1,4 @@
-﻿package br.com.gopro.api.dtos;
+package br.com.gopro.api.dtos;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -13,6 +13,7 @@ public record IncomeResponseDTO(
         String source,
         String invoiceNumber,
         String notes,
+        Boolean isActive,
         LocalDateTime createdAt,
         LocalDateTime updatedAt,
         Long createdBy,

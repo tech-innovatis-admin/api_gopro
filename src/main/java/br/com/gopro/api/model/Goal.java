@@ -1,4 +1,4 @@
-﻿package br.com.gopro.api.model;
+package br.com.gopro.api.model;
 
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
@@ -31,8 +31,7 @@ public class Goal {
     @Column(name = "titulo", length = 255, nullable = false)
     private String titulo;
 
-    @Lob
-    @Column(name = "descricao")
+    @Column(name = "descricao", columnDefinition = "text")
     private String descricao;
 
     @Column(name = "data_inicio")
@@ -40,6 +39,8 @@ public class Goal {
 
     @Column(name = "data_fim")
     private LocalDate dataFim;
+    @Column(name = "is_active")
+    private Boolean isActive;
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
@@ -55,3 +56,6 @@ public class Goal {
     @Column(name = "updated_by")
     private Long updatedBy;
 }
+
+
+

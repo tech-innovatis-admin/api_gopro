@@ -12,7 +12,7 @@ import java.util.Optional;
 
 @Repository
 public interface ProjectRepository extends JpaRepository<Project, Long> {
-    boolean existByCode(String code);
+    boolean existsByCode(String code);
     Page<Project> findAll(Pageable pageable);
     Page<Project> findByIsActiveTrue(Pageable pageable);
     Optional<Project> findByCode(String code);

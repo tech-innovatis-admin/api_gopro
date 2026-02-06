@@ -23,7 +23,7 @@ import java.util.List;
 
 @Service
 @RequiredArgsConstructor
-public class SecretaryServiceImpl implements SecretaryService{
+public class SecretaryServiceImpl implements SecretaryService {
 
     private final SecretaryRepository secretaryRepository;
     private final SecretaryMapper secretaryMapper;
@@ -46,15 +46,15 @@ public class SecretaryServiceImpl implements SecretaryService{
 
     @Override
     public PageResponseDTO<SecretaryResponseDTO> listAllSecretary(int page, int size) {
-        if (page < 0){
-            throw new BusinessException("Página deve ser ,aior que zero");
+        if (page < 0) {
+            throw new BusinessException("Pagina deve ser maior ou igual a 0");
         }
-        if (size <= 0 || size > 100){
-            throw new BusinessException("Tamanho da página deve estar entre 1 e 100");
+        if (size <= 0 || size > 100) {
+            throw new BusinessException("Tamanho da pagina deve estar entre 1 e 100");
         }
 
         Pageable pageable = PageRequest.of(page, size);
-        Page<Secretary> secretaryPage = secretaryRepository.findAll(pageable);
+        Page<Secretary> secretaryPage = secretaryRepository.findByIsActiveTrue(pageable);
 
         List<SecretaryResponseDTO> content = secretaryPage.getContent().stream()
                 .map(secretaryMapper::toDTO)
@@ -73,7 +73,11 @@ public class SecretaryServiceImpl implements SecretaryService{
     @Override
     public SecretaryResponseDTO findSecretaryById(Long id) {
         Secretary secretary = secretaryRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Secretaria não encontrada na base de dados"));
+                .orElseThrow(() -> new ResourceNotFoundException("Secretaria nao encontrada"));
+
+        if (!Boolean.TRUE.equals(secretary.getIsActive())) {
+            throw new ResourceNotFoundException("Secretaria nao encontrada");
+        }
 
         return secretaryMapper.toDTO(secretary);
     }
@@ -82,25 +86,25 @@ public class SecretaryServiceImpl implements SecretaryService{
     @Override
     public SecretaryResponseDTO updateSecretaryById(Long id, SecretaryUpdateDTO dto) {
         Secretary secretary = secretaryRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Secretaria não encontrada na base de dados"));
-        if (!secretary.getIsActive()){
-            throw new BusinessException("Não é possível atualizar uma secretaria que está desativada");
+                .orElseThrow(() -> new ResourceNotFoundException("Secretaria nao encontrada"));
+        if (!Boolean.TRUE.equals(secretary.getIsActive())) {
+            throw new BusinessException("Nao e possivel atualizar uma secretaria inativa");
         }
 
         secretary.setCode(dto.code());
         secretary.setSigla(dto.sigla());
         secretary.setPublicAgency(findPublicAgencyById(dto.publicAgencyId()));
         secretary.setName(dto.name());
-        if (dto.cnpj() != null){
+        if (dto.cnpj() != null) {
             secretary.setCnpj(NormalizeUtils.normalizeCnpj(dto.cnpj()));
         }
         secretary.setIsClient(dto.isClient());
         secretary.setEmail(dto.email());
-        if (dto.phone() != null){
+        if (dto.phone() != null) {
             secretary.setPhone(NormalizeUtils.normalizePhone(dto.phone()));
         }
         secretary.setAddress(dto.address());
-        if (dto.contactPerson() != null){
+        if (dto.contactPerson() != null) {
             secretary.setContactPerson(NormalizeUtils.normalizePhone(dto.contactPerson()));
         }
 
@@ -113,9 +117,9 @@ public class SecretaryServiceImpl implements SecretaryService{
     @Override
     public void deleteSecretaryById(Long id) {
         Secretary secretary = secretaryRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Secretaria não encontrada na base de dados"));
-        if (!secretary.getIsActive()){
-            throw new BusinessException("Não é possível desativar uma secretaria já desativada!");
+                .orElseThrow(() -> new ResourceNotFoundException("Secretaria nao encontrada"));
+        if (!Boolean.TRUE.equals(secretary.getIsActive())) {
+            throw new BusinessException("Secretaria ja esta inativa");
         }
 
         secretary.setIsActive(false);
@@ -126,24 +130,24 @@ public class SecretaryServiceImpl implements SecretaryService{
     @Override
     public SecretaryResponseDTO restoreSecretaryById(Long id) {
         Secretary secretary = secretaryRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Secretaria não encontrada na base de dados"));
-        if (secretary.getIsActive()){
-            throw new BusinessException("Não é possível ativar uma secretaria que já está ativa");
+                .orElseThrow(() -> new ResourceNotFoundException("Secretaria nao encontrada"));
+        if (Boolean.TRUE.equals(secretary.getIsActive())) {
+            throw new BusinessException("Secretaria ja esta ativa");
         }
 
         secretary.setIsActive(true);
-        Secretary retoresSecretary = secretaryRepository.save(secretary);
+        Secretary restoredSecretary = secretaryRepository.save(secretary);
 
-        return secretaryMapper.toDTO(retoresSecretary);
+        return secretaryMapper.toDTO(restoredSecretary);
     }
 
     @Transactional
     @Override
     public SecretaryResponseDTO activateSecretaryAsClientById(Long id) {
         Secretary secretary = secretaryRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Secretaria não encontrada na base de dados"));
-        if (secretary.getIsClient()){
-            throw new BusinessException("Não é possível ativar uma secretaria que já está ativa");
+                .orElseThrow(() -> new ResourceNotFoundException("Secretaria nao encontrada"));
+        if (Boolean.TRUE.equals(secretary.getIsClient())) {
+            throw new BusinessException("Secretaria ja e cliente");
         }
 
         secretary.setIsClient(true);
@@ -156,9 +160,9 @@ public class SecretaryServiceImpl implements SecretaryService{
     @Override
     public SecretaryResponseDTO desactivateSecretaryAsClientById(Long id) {
         Secretary secretary = secretaryRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Secretaria não encontrada na base de dados"));
-        if (!secretary.getIsClient()){
-            throw new BusinessException("Não é possível desativar uma secretaria que já está desativada");
+                .orElseThrow(() -> new ResourceNotFoundException("Secretaria nao encontrada"));
+        if (!Boolean.TRUE.equals(secretary.getIsClient())) {
+            throw new BusinessException("Secretaria nao e cliente");
         }
 
         secretary.setIsClient(false);
@@ -167,8 +171,8 @@ public class SecretaryServiceImpl implements SecretaryService{
         return secretaryMapper.toDTO(desactivatedSecretary);
     }
 
-    private PublicAgency findPublicAgencyById(Long id){
+    private PublicAgency findPublicAgencyById(Long id) {
         return publicAgencyRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Agência pública não encontrada na base de dados"));
+                .orElseThrow(() -> new ResourceNotFoundException("Agencia publica nao encontrada"));
     }
 }

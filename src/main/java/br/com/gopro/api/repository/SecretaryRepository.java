@@ -8,5 +8,5 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public interface SecretaryRepository extends JpaRepository<Secretary, Long> {
-    Page<Secretary> findAll(Pageable pageable);
+    Page<Secretary> findByIsActiveTrue(Pageable pageable);
 }

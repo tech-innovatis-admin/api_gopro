@@ -1,4 +1,4 @@
-﻿package br.com.gopro.api.model;
+package br.com.gopro.api.model;
 
 import br.com.gopro.api.enums.DocumentOwnerTypeEnum;
 import br.com.gopro.api.enums.DocumentStatusEnum;
@@ -75,6 +75,8 @@ public class Document {
     @Enumerated(EnumType.STRING)
     @Column(name = "status", length = 20, nullable = false)
     private DocumentStatusEnum status;
+    @Column(name = "is_active")
+    private Boolean isActive;
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
@@ -90,3 +92,5 @@ public class Document {
     @Column(name = "deleted_at")
     private LocalDateTime deletedAt;
 }
+
+

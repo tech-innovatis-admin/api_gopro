@@ -1,4 +1,4 @@
-﻿package br.com.gopro.api.service;
+package br.com.gopro.api.service;
 
 import br.com.gopro.api.dtos.PageResponseDTO;
 import br.com.gopro.api.dtos.PublicAgencyRequestDTO;

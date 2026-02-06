@@ -1,4 +1,4 @@
-﻿package br.com.gopro.api.controller;
+package br.com.gopro.api.controller;
 
 import br.com.gopro.api.dtos.DocumentDownloadUrlDTO;
 import br.com.gopro.api.dtos.DocumentResponseDTO;

@@ -1,4 +1,4 @@
-﻿package br.com.gopro.api.model;
+package br.com.gopro.api.model;
 
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
@@ -47,9 +47,10 @@ public class BudgetItem {
     @JoinColumn(name = "goal_id", foreignKey = @ForeignKey(name = "fk_budget_item_goal_id"))
     private Goal goal;
 
-    @Lob
-    @Column(name = "notes")
+    @Column(name = "notes", columnDefinition = "text")
     private String notes;
+    @Column(name = "is_active")
+    private Boolean isActive;
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)

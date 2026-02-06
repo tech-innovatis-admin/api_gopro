@@ -1,4 +1,4 @@
-﻿package br.com.gopro.api.model;
+package br.com.gopro.api.model;
 
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
@@ -45,7 +45,7 @@ public class Company {
     private String state;
 
     @Column(name = "is_active", nullable = false)
-    private Short isActive;
+    private Boolean isActive;
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)

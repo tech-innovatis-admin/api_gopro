@@ -1,4 +1,4 @@
-﻿package br.com.gopro.api.model;
+package br.com.gopro.api.model;
 
 import br.com.gopro.api.enums.StatusDisbursementScheduleEnum;
 import jakarta.persistence.*;
@@ -40,9 +40,10 @@ public class DisbursementSchedule {
     @Column(name = "status", nullable = false)
     private StatusDisbursementScheduleEnum status;
 
-    @Lob
-    @Column(name = "notes")
+    @Column(name = "notes", columnDefinition = "text")
     private String notes;
+    @Column(name = "is_active")
+    private Boolean isActive;
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
@@ -58,3 +59,6 @@ public class DisbursementSchedule {
     @Column(name = "updated_by")
     private Long updatedBy;
 }
+
+
+

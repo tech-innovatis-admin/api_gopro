@@ -1,4 +1,4 @@
-﻿package br.com.gopro.api.dtos;
+package br.com.gopro.api.dtos;
 
 import br.com.gopro.api.enums.DocumentOwnerTypeEnum;
 import br.com.gopro.api.enums.DocumentStatusEnum;
@@ -18,6 +18,7 @@ public record DocumentResponseDTO(
         String bucket,
         String s3Key,
         DocumentStatusEnum status,
+        Boolean isActive,
         LocalDateTime createdAt,
         LocalDateTime updatedAt,
         Long createdBy,

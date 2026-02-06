@@ -1,4 +1,4 @@
-﻿package br.com.gopro.api.model;
+package br.com.gopro.api.model;
 
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
@@ -33,8 +33,7 @@ public class ProjectCompany {
     @Column(name = "contract_number", length = 100)
     private String contractNumber;
 
-    @Lob
-    @Column(name = "description")
+    @Column(name = "description", columnDefinition = "text")
     private String description;
 
     @Column(name = "start_date")
@@ -49,8 +48,7 @@ public class ProjectCompany {
     @Column(name = "total_value", precision = 15, scale = 2)
     private BigDecimal totalValue;
 
-    @Lob
-    @Column(name = "notes")
+    @Column(name = "notes", columnDefinition = "text")
     private String notes;
 
     @Column(name = "is_incubated")
@@ -58,6 +56,8 @@ public class ProjectCompany {
 
     @Column(name = "service_type", length = 255)
     private String serviceType;
+    @Column(name = "is_active")
+    private Boolean isActive;
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
@@ -73,3 +73,6 @@ public class ProjectCompany {
     @Column(name = "updated_by")
     private Long updatedBy;
 }
+
+
+

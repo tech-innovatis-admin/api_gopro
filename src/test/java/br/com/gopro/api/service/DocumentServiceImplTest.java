@@ -1,4 +1,4 @@
-﻿package br.com.gopro.api.service;
+package br.com.gopro.api.service;
 
 import br.com.gopro.api.config.DocumentsS3Properties;
 import br.com.gopro.api.dtos.DocumentDownloadUrlDTO;

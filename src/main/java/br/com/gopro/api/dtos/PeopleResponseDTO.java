@@ -16,6 +16,7 @@ public record PeopleResponseDTO(
         String zipCode,
         String city,
         String state,
-        String notes
+        String notes,
+        Boolean isActive
 ) {
 }

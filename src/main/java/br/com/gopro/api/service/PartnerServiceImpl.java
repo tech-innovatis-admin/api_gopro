@@ -5,6 +5,7 @@ import br.com.gopro.api.dtos.PartnerRequestDTO;
 import br.com.gopro.api.dtos.PartnerResponseDTO;
 import br.com.gopro.api.dtos.PartnerUpdateDTO;
 import br.com.gopro.api.exception.BusinessException;
+import br.com.gopro.api.exception.ResourceNotFoundException;
 import br.com.gopro.api.mapper.PartnerMapper;
 import br.com.gopro.api.model.Partner;
 import br.com.gopro.api.repository.PartnerRepository;
@@ -13,15 +14,13 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 
 @Service
 @RequiredArgsConstructor
-public class PartnerServiceImpl implements PartnerService{
+public class PartnerServiceImpl implements PartnerService {
 
     private final PartnerMapper partnerMapper;
     private final PartnerRepository partnerRepository;
@@ -42,10 +41,10 @@ public class PartnerServiceImpl implements PartnerService{
     @Override
     public PageResponseDTO<PartnerResponseDTO> listAllPartners(int page, int size) {
         if (page < 0) {
-            throw new BusinessException("Página deve ser maior ou igual a 0");
+            throw new BusinessException("Pagina deve ser maior ou igual a 0");
         }
         if (size <= 0 || size > 100) {
-            throw new BusinessException("Tamanho da página deve estar entre 1 e 100");
+            throw new BusinessException("Tamanho da pagina deve estar entre 1 e 100");
         }
 
         Pageable pageable = PageRequest.of(page, size);
@@ -69,8 +68,11 @@ public class PartnerServiceImpl implements PartnerService{
     @Override
     public PartnerResponseDTO findPartnerById(Long id) {
         Partner partner = partnerRepository.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
-                        "Parceiro não encontrado!"));
+                .orElseThrow(() -> new ResourceNotFoundException("Parceiro nao encontrado"));
+
+        if (!Boolean.TRUE.equals(partner.getIsActive())) {
+            throw new ResourceNotFoundException("Parceiro nao encontrado");
+        }
 
         return partnerMapper.toDTO(partner);
     }
@@ -78,8 +80,11 @@ public class PartnerServiceImpl implements PartnerService{
     @Override
     public PartnerResponseDTO updatePartnerById(Long id, PartnerUpdateDTO dto) {
         Partner partner = partnerRepository.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
-                        "Parceiro não encontrado!"));
+                .orElseThrow(() -> new ResourceNotFoundException("Parceiro nao encontrado"));
+
+        if (!Boolean.TRUE.equals(partner.getIsActive())) {
+            throw new BusinessException("Nao e possivel atualizar um parceiro inativo");
+        }
 
         partnerMapper.updateEntityFromDTO(dto, partner);
 
@@ -98,12 +103,10 @@ public class PartnerServiceImpl implements PartnerService{
     @Override
     public void deletePartnerById(Long id) {
         Partner partner = partnerRepository.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
-                        "Parceiro não encontrado!"));
+                .orElseThrow(() -> new ResourceNotFoundException("Parceiro nao encontrado"));
 
-        if (!partner.getIsActive()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "Parceiro já está inativo!");
+        if (!Boolean.TRUE.equals(partner.getIsActive())) {
+            throw new BusinessException("Parceiro ja esta inativo");
         }
 
         partner.setIsActive(false);
@@ -113,12 +116,10 @@ public class PartnerServiceImpl implements PartnerService{
     @Override
     public PartnerResponseDTO restorePartnerById(Long id) {
         Partner partner = partnerRepository.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
-                        "Parceiro não encontrado!"));
+                .orElseThrow(() -> new ResourceNotFoundException("Parceiro nao encontrado"));
 
-        if (partner.getIsActive()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "Parceiro já está ativo!");
+        if (Boolean.TRUE.equals(partner.getIsActive())) {
+            throw new BusinessException("Parceiro ja esta ativo");
         }
 
         partner.setIsActive(true);

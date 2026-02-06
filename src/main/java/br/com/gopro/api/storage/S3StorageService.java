@@ -1,6 +1,7 @@
-﻿package br.com.gopro.api.storage;
+package br.com.gopro.api.storage;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
@@ -17,6 +18,7 @@ import java.net.URI;
 import java.time.Duration;
 
 @Service
+@ConditionalOnProperty(prefix = "app.documents.s3", name = "bucket")
 @RequiredArgsConstructor
 public class S3StorageService implements StorageService {
 
@@ -69,6 +71,6 @@ public class S3StorageService implements StorageService {
                 .getObjectRequest(getObjectRequest)
                 .build();
 
-        return s3Presigner.presignGetObject(presignRequest).url().toURI();
+        return java.net.URI.create(s3Presigner.presignGetObject(presignRequest).url().toString());
     }
 }

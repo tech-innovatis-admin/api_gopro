@@ -1,4 +1,4 @@
-﻿package br.com.gopro.api.model;
+package br.com.gopro.api.model;
 
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
@@ -53,6 +53,8 @@ public class People {
 
     @Column(name = "notes", length = 500)
     private String notes;
+    @Column(name = "is_active")
+    private Boolean isActive;
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
@@ -68,3 +70,5 @@ public class People {
     @Column(name = "updated_by")
     private Long updatedBy;
 }
+
+

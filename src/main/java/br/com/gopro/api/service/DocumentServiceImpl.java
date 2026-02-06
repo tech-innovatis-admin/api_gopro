@@ -1,4 +1,4 @@
-﻿package br.com.gopro.api.service;
+package br.com.gopro.api.service;
 
 import br.com.gopro.api.config.DocumentsS3Properties;
 import br.com.gopro.api.dtos.DocumentDownloadUrlDTO;
@@ -49,7 +49,7 @@ public class DocumentServiceImpl implements DocumentService {
 
         String bucket = documentsS3Properties.getBucket();
         if (bucket == null || bucket.isBlank()) {
-            throw new BusinessException("Bucket do S3 nao configurado");
+            bucket = "not-configured";
         }
 
         String sanitizedFilename = sanitizeFilename(file.getOriginalFilename());
@@ -65,6 +65,7 @@ public class DocumentServiceImpl implements DocumentService {
         document.setBucket(bucket);
         document.setS3Key(s3Key);
         document.setStatus(DocumentStatusEnum.UPLOADING);
+        document.setIsActive(true);
         document.setCreatedBy(createdBy);
 
         try {
@@ -88,6 +89,9 @@ public class DocumentServiceImpl implements DocumentService {
     public DocumentResponseDTO findById(UUID id) {
         Document document = documentRepository.findByIdAndStatusNot(id, DocumentStatusEnum.DELETED)
                 .orElseThrow(() -> new ResourceNotFoundException("Documento nao encontrado"));
+        if (!Boolean.TRUE.equals(document.getIsActive())) {
+            throw new ResourceNotFoundException("Documento nao encontrado");
+        }
         return toResponseDTO(document);
     }
 
@@ -95,6 +99,9 @@ public class DocumentServiceImpl implements DocumentService {
     public DocumentDownloadUrlDTO generateDownloadUrl(UUID id, Duration expiresIn) {
         Document document = documentRepository.findByIdAndStatusNot(id, DocumentStatusEnum.DELETED)
                 .orElseThrow(() -> new ResourceNotFoundException("Documento nao encontrado"));
+        if (!Boolean.TRUE.equals(document.getIsActive())) {
+            throw new ResourceNotFoundException("Documento nao encontrado");
+        }
 
         if (document.getStatus() != DocumentStatusEnum.AVAILABLE) {
             throw new BusinessException("Documento nao esta disponivel para download");
@@ -112,6 +119,7 @@ public class DocumentServiceImpl implements DocumentService {
                 .orElseThrow(() -> new ResourceNotFoundException("Documento nao encontrado"));
 
         document.setStatus(DocumentStatusEnum.DELETED);
+        document.setIsActive(false);
         document.setDeletedAt(LocalDateTime.now());
         documentRepository.save(document);
         log.info("document_soft_deleted documentId={} s3Key={}", document.getId(), document.getS3Key());
@@ -179,6 +187,7 @@ public class DocumentServiceImpl implements DocumentService {
                 document.getBucket(),
                 document.getS3Key(),
                 document.getStatus(),
+                document.getIsActive(),
                 document.getCreatedAt(),
                 document.getUpdatedAt(),
                 document.getCreatedBy(),

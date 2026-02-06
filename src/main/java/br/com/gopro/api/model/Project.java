@@ -1,4 +1,4 @@
-﻿package br.com.gopro.api.model;
+package br.com.gopro.api.model;
 
 import br.com.gopro.api.enums.ProjectGovIfEnum;
 import br.com.gopro.api.enums.ProjectStatusEnum;
@@ -37,8 +37,7 @@ public class Project {
     @Column(name = "area_segmento")
     private String areaSegmento;
 
-    @Lob
-    @Column(name = "object", nullable = false)
+    @Column(name = "object", nullable = false, columnDefinition = "text")
     private String object;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
@@ -101,6 +100,8 @@ public class Project {
 
     @Column(name = "saldo", nullable = false, precision = 35, scale = 2)
     private BigDecimal saldo;
+    @Column(name = "is_active")
+    private Boolean isActive;
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false, nullable = false)
@@ -116,3 +117,6 @@ public class Project {
     @Column(name = "updated_by")
     private Long updatedBy;
 }
+
+
+

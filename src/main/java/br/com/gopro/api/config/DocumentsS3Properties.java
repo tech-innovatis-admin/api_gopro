@@ -1,4 +1,4 @@
-﻿package br.com.gopro.api.config;
+package br.com.gopro.api.config;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 

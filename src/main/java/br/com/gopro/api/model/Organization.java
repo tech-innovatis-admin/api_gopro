@@ -1,4 +1,4 @@
-﻿package br.com.gopro.api.model;
+package br.com.gopro.api.model;
 
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
@@ -38,8 +38,7 @@ public class Organization {
     @Column(name = "phone", length = 50)
     private String phone;
 
-    @Lob
-    @Column(name = "address")
+    @Column(name = "address", columnDefinition = "text")
     private String address;
 
     @Column(name = "contact_person", length = 255)
@@ -54,12 +53,11 @@ public class Organization {
     @Column(name = "state", length = 50)
     private String state;
 
-    @Lob
-    @Column(name = "notes")
+    @Column(name = "notes", columnDefinition = "text")
     private String notes;
 
     @Column(name = "is_active", nullable = false)
-    private Short isActive;
+    private Boolean isActive;
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
@@ -75,3 +73,5 @@ public class Organization {
     @Column(name = "updated_by")
     private Long updatedBy;
 }
+
+

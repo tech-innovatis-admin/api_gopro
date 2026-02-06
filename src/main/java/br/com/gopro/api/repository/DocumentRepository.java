@@ -1,4 +1,4 @@
-﻿package br.com.gopro.api.repository;
+package br.com.gopro.api.repository;
 
 import br.com.gopro.api.enums.DocumentOwnerTypeEnum;
 import br.com.gopro.api.enums.DocumentStatusEnum;

@@ -41,9 +41,10 @@ public class Income {
     @Column(name = "invoice_number", length = 100)
     private String invoiceNumber;
 
-    @Lob
-    @Column(name = "notes")
+    @Column(name = "notes", columnDefinition = "text")
     private String notes;
+    @Column(name = "is_active")
+    private Boolean isActive;
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false, nullable = false)
@@ -59,3 +60,6 @@ public class Income {
     @Column(name = "updated_by")
     private Long updatedBy;
 }
+
+
+

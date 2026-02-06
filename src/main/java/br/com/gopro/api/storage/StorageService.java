@@ -1,4 +1,4 @@
-﻿package br.com.gopro.api.storage;
+package br.com.gopro.api.storage;
 
 import java.io.InputStream;
 import java.net.URI;

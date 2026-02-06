@@ -1,4 +1,4 @@
-﻿package br.com.gopro.api.dtos;
+package br.com.gopro.api.dtos;
 
 import br.com.gopro.api.enums.ProjectGovIfEnum;
 import br.com.gopro.api.enums.ProjectStatusEnum;
@@ -30,6 +30,7 @@ public record ProjectResponseDTO(
         String city,
         String state,
         String executionLocation,
+        Boolean isActive,
         BigDecimal totalReceived,
         BigDecimal totalExpenses,
         BigDecimal saldo,

@@ -1,4 +1,4 @@
-﻿package br.com.gopro.api.model;
+package br.com.gopro.api.model;
 
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
@@ -30,12 +30,11 @@ public class BudgetCategory {
     @Column(name = "name", length = 255, nullable = false, unique = true)
     private String name;
 
-    @Lob
-    @Column(name = "description")
+    @Column(name = "description", columnDefinition = "text")
     private String description;
 
-    @Column(name = "active", nullable = false)
-    private Boolean active;
+    @Column(name = "is_active", nullable = false)
+    private Boolean isActive;
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)

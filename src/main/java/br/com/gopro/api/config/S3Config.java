@@ -1,5 +1,6 @@
-﻿package br.com.gopro.api.config;
+package br.com.gopro.api.config;
 
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -11,6 +12,7 @@ import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 
 @Configuration
 @EnableConfigurationProperties(DocumentsS3Properties.class)
+@ConditionalOnProperty(prefix = "app.documents.s3", name = "bucket")
 public class S3Config {
 
     @Bean

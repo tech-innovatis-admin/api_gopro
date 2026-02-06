@@ -1,4 +1,4 @@
-﻿package br.com.gopro.api.model;
+package br.com.gopro.api.model;
 
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
@@ -63,6 +63,8 @@ public class Expense {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "document_id", foreignKey = @ForeignKey(name = "fk_expense_document_id"))
     private Document document;
+    @Column(name = "is_active")
+    private Boolean isActive;
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
@@ -78,3 +80,5 @@ public class Expense {
     @Column(name = "updated_by")
     private Long updatedBy;
 }
+
+

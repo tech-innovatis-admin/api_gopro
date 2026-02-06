@@ -1,4 +1,4 @@
-﻿package br.com.gopro.api.dtos;
+package br.com.gopro.api.dtos;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -19,6 +19,7 @@ public record ExpenseResponseDTO(
         String invoiceNumber,
         LocalDate invoiceDate,
         UUID documentId,
+        Boolean isActive,
         LocalDateTime createdAt,
         LocalDateTime updatedAt,
         Long createdBy,

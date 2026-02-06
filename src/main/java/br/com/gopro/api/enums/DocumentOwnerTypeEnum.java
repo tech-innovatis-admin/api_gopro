@@ -1,4 +1,4 @@
-﻿package br.com.gopro.api.enums;
+package br.com.gopro.api.enums;
 
 public enum DocumentOwnerTypeEnum {
     PROJECT,

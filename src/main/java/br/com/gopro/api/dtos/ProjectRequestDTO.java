@@ -1,4 +1,4 @@
-﻿package br.com.gopro.api.dtos;
+package br.com.gopro.api.dtos;
 
 import br.com.gopro.api.enums.ProjectGovIfEnum;
 import br.com.gopro.api.enums.ProjectStatusEnum;

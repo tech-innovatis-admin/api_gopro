@@ -1,4 +1,4 @@
-﻿package br.com.gopro.api.model;
+package br.com.gopro.api.model;
 
 import br.com.gopro.api.enums.BudgetTransferStatusEnum;
 import jakarta.persistence.*;
@@ -45,13 +45,14 @@ public class BudgetTransfer {
     @Column(name = "status", nullable = false)
     private BudgetTransferStatusEnum status;
 
-    @Lob
-    @Column(name = "reason")
+    @Column(name = "reason", columnDefinition = "text")
     private String reason;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "document_id", foreignKey = @ForeignKey(name = "fk_budget_transfer_document_id"))
     private Document document;
+    @Column(name = "is_active")
+    private Boolean isActive;
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)

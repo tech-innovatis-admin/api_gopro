@@ -1,4 +1,4 @@
-﻿package br.com.gopro.api.mapper;
+package br.com.gopro.api.mapper;
 
 import br.com.gopro.api.dtos.IncomeRequestDTO;
 import br.com.gopro.api.dtos.IncomeResponseDTO;

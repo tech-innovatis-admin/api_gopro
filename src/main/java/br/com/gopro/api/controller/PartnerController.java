@@ -29,7 +29,7 @@ public class PartnerController {
     @ApiResponses({
             @ApiResponse(responseCode = "201", description = "Parceiro criado com sucesso",
                     content = @Content(schema = @Schema(implementation = PartnerResponseDTO.class))),
-            @ApiResponse(responseCode = "400", description = "Dados inválidos")
+            @ApiResponse(responseCode = "400", description = "Dados invalidos")
     })
     @PostMapping
     public ResponseEntity<PartnerResponseDTO> createPartner(@Valid @RequestBody PartnerRequestDTO dto) {
@@ -37,15 +37,15 @@ public class PartnerController {
         return ResponseEntity.status(201).body(partnerCreated);
     }
 
-    @Operation(summary = "Listar todos os parceiros com paginação")
+    @Operation(summary = "Listar todos os parceiros com paginacao")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Lista retornada com sucesso")
     })
     @GetMapping
     public ResponseEntity<PageResponseDTO<PartnerResponseDTO>> listAllPartners(
-            @Parameter(description = "Número da página (começando em 0)")
+            @Parameter(description = "Numero da pagina (comecando em 0)")
             @RequestParam(defaultValue = "0") int page,
-            @Parameter(description = "Tamanho da página (máximo 100)")
+            @Parameter(description = "Tamanho da pagina (maximo 100)")
             @RequestParam(defaultValue = "10") int size
     ) {
         PageResponseDTO<PartnerResponseDTO> partners = partnerService.listAllPartners(page, size);
@@ -56,7 +56,7 @@ public class PartnerController {
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Parceiro encontrado",
                     content = @Content(schema = @Schema(implementation = PartnerResponseDTO.class))),
-            @ApiResponse(responseCode = "404", description = "Parceiro não encontrado")
+            @ApiResponse(responseCode = "404", description = "Parceiro nao encontrado")
     })
     @GetMapping("/{id}")
     public ResponseEntity<PartnerResponseDTO> findPartnerById(@PathVariable Long id) {
@@ -68,8 +68,8 @@ public class PartnerController {
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Parceiro atualizado com sucesso",
                     content = @Content(schema = @Schema(implementation = PartnerResponseDTO.class))),
-            @ApiResponse(responseCode = "404", description = "Parceiro não encontrado"),
-            @ApiResponse(responseCode = "400", description = "Dados inválidos")
+            @ApiResponse(responseCode = "404", description = "Parceiro nao encontrado"),
+            @ApiResponse(responseCode = "400", description = "Dados invalidos")
     })
     @PutMapping("/{id}")
     public ResponseEntity<PartnerResponseDTO> updatePartnerById(
@@ -83,8 +83,8 @@ public class PartnerController {
     @Operation(summary = "Desativar parceiro por ID (Soft Delete)")
     @ApiResponses({
             @ApiResponse(responseCode = "204", description = "Parceiro desativado com sucesso"),
-            @ApiResponse(responseCode = "404", description = "Parceiro não encontrado"),
-            @ApiResponse(responseCode = "400", description = "Parceiro já está inativo")
+            @ApiResponse(responseCode = "404", description = "Parceiro nao encontrado"),
+            @ApiResponse(responseCode = "400", description = "Parceiro ja esta inativo")
     })
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deletePartnerById(@PathVariable Long id) {
@@ -96,8 +96,8 @@ public class PartnerController {
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Parceiro reativado com sucesso",
                     content = @Content(schema = @Schema(implementation = PartnerResponseDTO.class))),
-            @ApiResponse(responseCode = "404", description = "Parceiro não encontrado"),
-            @ApiResponse(responseCode = "400", description = "Parceiro já está ativo")
+            @ApiResponse(responseCode = "404", description = "Parceiro nao encontrado"),
+            @ApiResponse(responseCode = "400", description = "Parceiro ja esta ativo")
     })
     @PatchMapping("/{id}/restore")
     public ResponseEntity<PartnerResponseDTO> restorePartnerById(@PathVariable Long id) {

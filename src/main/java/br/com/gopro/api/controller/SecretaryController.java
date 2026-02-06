@@ -27,8 +27,9 @@ public class SecretaryController {
 
     @Operation(summary = "Criar secretaria")
     @ApiResponses({
-            @ApiResponse(responseCode = "201", description = "Secretaria criada com sucesso", content = @Content(schema = @Schema(implementation = SecretaryResponseDTO.class))),
-            @ApiResponse(responseCode = "400", description = "Dados inválidos")
+            @ApiResponse(responseCode = "201", description = "Secretaria criada com sucesso",
+                    content = @Content(schema = @Schema(implementation = SecretaryResponseDTO.class))),
+            @ApiResponse(responseCode = "400", description = "Dados invalidos")
     })
     @PostMapping
     public ResponseEntity<SecretaryResponseDTO> createSecretary(@Valid @RequestBody SecretaryRequestDTO dto) {
@@ -36,22 +37,23 @@ public class SecretaryController {
         return ResponseEntity.status(201).body(secretaryCreated);
     }
 
-    @Operation(summary = "Listar todas as secretarias com paginação")
+    @Operation(summary = "Listar todas as secretarias com paginacao")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Lista retornada com sucesso")
     })
     @GetMapping
     public ResponseEntity<PageResponseDTO<SecretaryResponseDTO>> listAllSecretaries(
-            @Parameter(description = "Número da página (começando em 0)") @RequestParam(defaultValue = "0") int page,
-            @Parameter(description = "Tamanho da página (máximo 100)") @RequestParam(defaultValue = "10") int size) {
+            @Parameter(description = "Numero da pagina (comecando em 0)") @RequestParam(defaultValue = "0") int page,
+            @Parameter(description = "Tamanho da pagina (maximo 100)") @RequestParam(defaultValue = "10") int size) {
         PageResponseDTO<SecretaryResponseDTO> secretaries = secretaryService.listAllSecretary(page, size);
         return ResponseEntity.ok(secretaries);
     }
 
     @Operation(summary = "Buscar secretaria por ID")
     @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "Secretaria encontrada", content = @Content(schema = @Schema(implementation = SecretaryResponseDTO.class))),
-            @ApiResponse(responseCode = "404", description = "Secretaria não encontrada")
+            @ApiResponse(responseCode = "200", description = "Secretaria encontrada",
+                    content = @Content(schema = @Schema(implementation = SecretaryResponseDTO.class))),
+            @ApiResponse(responseCode = "404", description = "Secretaria nao encontrada")
     })
     @GetMapping("/{id}")
     public ResponseEntity<SecretaryResponseDTO> findSecretaryById(@PathVariable Long id) {
@@ -61,9 +63,10 @@ public class SecretaryController {
 
     @Operation(summary = "Atualizar secretaria por ID")
     @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "Secretaria atualizada com sucesso", content = @Content(schema = @Schema(implementation = SecretaryResponseDTO.class))),
-            @ApiResponse(responseCode = "404", description = "Secretaria não encontrada"),
-            @ApiResponse(responseCode = "400", description = "Dados inválidos")
+            @ApiResponse(responseCode = "200", description = "Secretaria atualizada com sucesso",
+                    content = @Content(schema = @Schema(implementation = SecretaryResponseDTO.class))),
+            @ApiResponse(responseCode = "404", description = "Secretaria nao encontrada"),
+            @ApiResponse(responseCode = "400", description = "Dados invalidos")
     })
     @PutMapping("/{id}")
     public ResponseEntity<SecretaryResponseDTO> updateSecretaryById(
@@ -76,8 +79,8 @@ public class SecretaryController {
     @Operation(summary = "Desativar secretaria por ID (Soft Delete)")
     @ApiResponses({
             @ApiResponse(responseCode = "204", description = "Secretaria desativada com sucesso"),
-            @ApiResponse(responseCode = "404", description = "Secretaria não encontrada"),
-            @ApiResponse(responseCode = "400", description = "Secretaria já está inativa")
+            @ApiResponse(responseCode = "404", description = "Secretaria nao encontrada"),
+            @ApiResponse(responseCode = "400", description = "Secretaria ja esta inativa")
     })
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteSecretaryById(@PathVariable Long id) {
@@ -87,9 +90,10 @@ public class SecretaryController {
 
     @Operation(summary = "Reativar secretaria por ID")
     @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "Secretaria reativada com sucesso", content = @Content(schema = @Schema(implementation = SecretaryResponseDTO.class))),
-            @ApiResponse(responseCode = "404", description = "Secretaria não encontrada"),
-            @ApiResponse(responseCode = "400", description = "Secretaria já está ativa")
+            @ApiResponse(responseCode = "200", description = "Secretaria reativada com sucesso",
+                    content = @Content(schema = @Schema(implementation = SecretaryResponseDTO.class))),
+            @ApiResponse(responseCode = "404", description = "Secretaria nao encontrada"),
+            @ApiResponse(responseCode = "400", description = "Secretaria ja esta ativa")
     })
     @PatchMapping("/{id}/restore")
     public ResponseEntity<SecretaryResponseDTO> restoreSecretaryById(@PathVariable Long id) {
@@ -99,9 +103,10 @@ public class SecretaryController {
 
     @Operation(summary = "Ativar secretaria como cliente")
     @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "Secretaria ativada como cliente com sucesso", content = @Content(schema = @Schema(implementation = SecretaryResponseDTO.class))),
-            @ApiResponse(responseCode = "404", description = "Secretaria não encontrada"),
-            @ApiResponse(responseCode = "400", description = "Secretaria já é cliente")
+            @ApiResponse(responseCode = "200", description = "Secretaria ativada como cliente com sucesso",
+                    content = @Content(schema = @Schema(implementation = SecretaryResponseDTO.class))),
+            @ApiResponse(responseCode = "404", description = "Secretaria nao encontrada"),
+            @ApiResponse(responseCode = "400", description = "Secretaria ja e cliente")
     })
     @PatchMapping("/{id}/activate-client")
     public ResponseEntity<SecretaryResponseDTO> activateSecretaryAsClient(@PathVariable Long id) {
@@ -111,9 +116,10 @@ public class SecretaryController {
 
     @Operation(summary = "Desativar secretaria como cliente")
     @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "Secretaria desativada como cliente com sucesso", content = @Content(schema = @Schema(implementation = SecretaryResponseDTO.class))),
-            @ApiResponse(responseCode = "404", description = "Secretaria não encontrada"),
-            @ApiResponse(responseCode = "400", description = "Secretaria não é cliente")
+            @ApiResponse(responseCode = "200", description = "Secretaria desativada como cliente com sucesso",
+                    content = @Content(schema = @Schema(implementation = SecretaryResponseDTO.class))),
+            @ApiResponse(responseCode = "404", description = "Secretaria nao encontrada"),
+            @ApiResponse(responseCode = "400", description = "Secretaria nao e cliente")
     })
     @PatchMapping("/{id}/deactivate-client")
     public ResponseEntity<SecretaryResponseDTO> deactivateSecretaryAsClient(@PathVariable Long id) {

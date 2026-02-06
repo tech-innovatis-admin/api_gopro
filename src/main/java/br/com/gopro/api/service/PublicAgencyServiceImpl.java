@@ -50,10 +50,10 @@ public class PublicAgencyServiceImpl implements PublicAgencyService {
     @Override
     public PageResponseDTO<PublicAgencyResponseDTO> listAllPublicAgencies(int page, int size) {
         if (page < 0) {
-            throw new BusinessException("Página de ser maior que zero");
+            throw new BusinessException("Pagina deve ser maior ou igual a 0");
         }
         if (size <= 0 || size > 100) {
-            throw new BusinessException("Tamanho da página deve estar entre 1 e 100");
+            throw new BusinessException("Tamanho da pagina deve estar entre 1 e 100");
         }
 
         Pageable pageable = PageRequest.of(page, size);
@@ -76,7 +76,11 @@ public class PublicAgencyServiceImpl implements PublicAgencyService {
     @Override
     public PublicAgencyResponseDTO findPublicAgencyById(Long id) {
         PublicAgency publicAgency = publicAgencyRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Agência pública não encontrada na base de dados"));
+                .orElseThrow(() -> new ResourceNotFoundException("Agencia publica nao encontrada"));
+
+        if (!Boolean.TRUE.equals(publicAgency.getIsActive())) {
+            throw new ResourceNotFoundException("Agencia publica nao encontrada");
+        }
 
         return publicAgencyMapper.toDTO(publicAgency);
     }
@@ -85,10 +89,10 @@ public class PublicAgencyServiceImpl implements PublicAgencyService {
     @Override
     public PublicAgencyResponseDTO updatePublicAgencyById(Long id, PublicAgencyUpdateDTO dto) {
         PublicAgency publicAgency = publicAgencyRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Agência pública não encontrada na base de dados"));
+                .orElseThrow(() -> new ResourceNotFoundException("Agencia publica nao encontrada"));
 
-        if (publicAgency.getIsActive() != true) {
-            throw new BusinessException("Não tem como alterar uma Agência pública que não está ativo no sistema");
+        if (!Boolean.TRUE.equals(publicAgency.getIsActive())) {
+            throw new BusinessException("Nao e possivel atualizar uma agencia publica inativa");
         }
 
         publicAgency.setCode(dto.code());
@@ -120,10 +124,10 @@ public class PublicAgencyServiceImpl implements PublicAgencyService {
     @Override
     public void deletePublicAgencyById(Long id) {
         PublicAgency publicAgency = publicAgencyRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Agência pública não encontrada na base de dados"));
+                .orElseThrow(() -> new ResourceNotFoundException("Agencia publica nao encontrada"));
 
-        if (!publicAgency.getIsActive()) {
-            throw new BusinessException("Não é possível excluir agências públicas que já foram excluidas");
+        if (!Boolean.TRUE.equals(publicAgency.getIsActive())) {
+            throw new BusinessException("Agencia publica ja esta inativa");
         }
 
         publicAgency.setIsActive(false);
@@ -134,10 +138,10 @@ public class PublicAgencyServiceImpl implements PublicAgencyService {
     @Override
     public PublicAgencyResponseDTO restorePublicAgencyById(Long id) {
         PublicAgency publicAgency = publicAgencyRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Agência pública não encontrada na base de dados"));
+                .orElseThrow(() -> new ResourceNotFoundException("Agencia publica nao encontrada"));
 
-        if (publicAgency.getIsActive()) {
-            throw new BusinessException("Não é possível ativar uma agência pública que já está ativada");
+        if (Boolean.TRUE.equals(publicAgency.getIsActive())) {
+            throw new BusinessException("Agencia publica ja esta ativa");
         }
 
         publicAgency.setIsActive(true);
