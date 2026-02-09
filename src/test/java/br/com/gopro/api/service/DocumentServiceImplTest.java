@@ -108,6 +108,7 @@ class DocumentServiceImplTest {
         Document document = new Document();
         document.setId(id);
         document.setStatus(DocumentStatusEnum.AVAILABLE);
+        document.setIsActive(true);
         document.setBucket("private-bucket");
         document.setS3Key("documents/PROJECT/10/x.pdf");
 
@@ -126,6 +127,7 @@ class DocumentServiceImplTest {
         Document document = new Document();
         document.setId(id);
         document.setStatus(DocumentStatusEnum.UPLOADING);
+        document.setIsActive(true);
 
         when(documentRepository.findByIdAndStatusNot(id, DocumentStatusEnum.DELETED)).thenReturn(Optional.of(document));
 

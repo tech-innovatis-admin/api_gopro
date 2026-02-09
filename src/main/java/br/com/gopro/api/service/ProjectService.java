@@ -1,9 +1,13 @@
 package br.com.gopro.api.service;
 
 import br.com.gopro.api.dtos.PageResponseDTO;
+import br.com.gopro.api.dtos.ProjectDashboardResponseDTO;
 import br.com.gopro.api.dtos.ProjectRequestDTO;
 import br.com.gopro.api.dtos.ProjectResponseDTO;
+import br.com.gopro.api.dtos.ProjectTotalsDTO;
 import br.com.gopro.api.dtos.ProjectUpdateDTO;
+import br.com.gopro.api.enums.ProjectStatusEnum;
+import br.com.gopro.api.enums.ProjectTypeEnum;
 
 public interface ProjectService {
     ProjectResponseDTO createProject(ProjectRequestDTO dto);
@@ -12,4 +16,12 @@ public interface ProjectService {
     ProjectResponseDTO updateProjectById(Long id, ProjectUpdateDTO dto);
     void deleteProjectById(Long id);
     ProjectResponseDTO restoreProjectById(Long id);
+    ProjectTotalsDTO getProjectTotals(Long projectId);
+    ProjectDashboardResponseDTO getDashboard(
+            ProjectStatusEnum projectStatus,
+            ProjectTypeEnum projectType,
+            Integer month,
+            String location,
+            Long partnerId
+    );
 }

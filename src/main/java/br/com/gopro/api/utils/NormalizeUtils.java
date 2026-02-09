@@ -1,10 +1,11 @@
 package br.com.gopro.api.utils;
 
 import java.text.Normalizer;
+import java.util.Locale;
 
 public class NormalizeUtils {
 
-    private NormalizeUtils(){}
+    private NormalizeUtils() {}
 
     public static String normalizeToNumbers(String value) {
         if (value == null) return null;
@@ -12,23 +13,19 @@ public class NormalizeUtils {
     }
 
     public static String normalizeCnpj(String cnpj) {
-        String normalized = normalizeToNumbers(cnpj);
-        return normalized;
+        return normalizeToNumbers(cnpj);
     }
 
     public static String normalizeCpf(String cpf) {
-        String normalized = normalizeToNumbers(cpf);
-        return normalized;
+        return normalizeToNumbers(cpf);
     }
 
     public static String normalizePhone(String phone) {
-        String normalized = normalizeToNumbers(phone);
-        return normalized;
+        return normalizeToNumbers(phone);
     }
 
     public static String normalizeZipCode(String zipCode) {
-        String normalized = normalizeToNumbers(zipCode);
-        return normalized;
+        return normalizeToNumbers(zipCode);
     }
 
     public static boolean isNumeric(String value) {
@@ -40,6 +37,16 @@ public class NormalizeUtils {
         if (value == null) return null;
         String normalized = value.trim();
         return normalized.isEmpty() ? null : normalized;
+    }
+
+    public static String normalizeForSearch(String value) {
+        String trimmed = normalizeOrNull(value);
+        if (trimmed == null) {
+            return "";
+        }
+        String withoutAccents = Normalizer.normalize(trimmed, Normalizer.Form.NFD)
+                .replaceAll("\\p{M}", "");
+        return withoutAccents.toLowerCase(Locale.ROOT);
     }
 
     public static boolean isValidCpf(String cpf) {
@@ -76,7 +83,6 @@ public class NormalizeUtils {
             secondCheckDigit = 0;
         }
 
-        // 5. Compara com os dígitos informados
         return firstCheckDigit == Character.getNumericValue(normalized.charAt(9))
                 && secondCheckDigit == Character.getNumericValue(normalized.charAt(10));
     }

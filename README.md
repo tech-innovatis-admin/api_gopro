@@ -1,26 +1,35 @@
-# API GoPro 2 (Em desenvolvimento)
+# API GoPro 2
 
-Este projeto está em fase inicial de desenvolvimento e tem como objetivo fornecer uma API para gerenciamento e integração de funcionalidades relacionadas ao domínio GoPro.
+Backend Spring Boot da plataforma GoPro.
 
-## Status do Projeto
-🚧 Em construção
+## Requisitos
+- Java 21+
+- Maven (ou `./mvnw`)
+- PostgreSQL
 
-## Tecnologias (parcial)
-- Java
-- Spring Boot
-- Maven
+## Executando localmente
+1. Ajuste credenciais de banco em `src/main/resources/application.properties` (ou variaveis de ambiente).
+2. Rode:
 
-## Estrutura inicial
-A estrutura atual pode sofrer alterações conforme a evolução do projeto.
+```bash
+./mvnw spring-boot:run
+```
 
-## Como executar (preliminar)
-1. Clone o repositório
-2. Importe o projeto em sua IDE
-3. Execute a aplicação via Spring Boot
+Por padrao, o profile ativo e `dev` (`spring.profiles.active=${SPRING_PROFILES_ACTIVE:dev}`).
 
-## Observações
-- Este README será atualizado conforme novas funcionalidades forem adicionadas.
-- Configurações sensíveis devem ser definidas via variáveis de ambiente.
+## Profiles e CORS
+- `dev`: permite `http://localhost:3000`, `http://127.0.0.1:3000`, `http://localhost:5173`, `http://127.0.0.1:5173`.
+- `prod`: usa `APP_CORS_ALLOWED_ORIGINS` (lista separada por virgula).
 
-## Autor
-Gabriel Chaves - Desenvolvedor FullStack na Innovatis.
+Arquivos:
+- `src/main/resources/application.properties`
+- `src/main/resources/application-dev.properties`
+- `src/main/resources/application-prod.properties`
+
+## OpenAPI / Swagger
+- UI: `http://localhost:8080/swagger-ui/index.html`
+- Docs JSON: `http://localhost:8080/v3/api-docs`
+
+## Observacoes
+- Seguranca atual esta aberta (`permitAll`) para todas as rotas da API.
+- Erros sao padronizados via `GlobalExceptionHandler`.

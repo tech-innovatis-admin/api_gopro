@@ -1,7 +1,5 @@
 package br.com.gopro.api.exception;
 
-import org.springframework.validation.FieldError;
-
 import java.time.LocalDateTime;
 import java.util.List;
 

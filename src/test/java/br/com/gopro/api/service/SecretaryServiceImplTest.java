@@ -93,7 +93,7 @@ class SecretaryServiceImplTest {
         SecretaryResponseDTO responseDTO = secretaryResponseDTO();
         PageRequest pageable = PageRequest.of(0, 10);
 
-        when(secretaryRepository.findAll(pageable))
+        when(secretaryRepository.findByIsActiveTrue(pageable))
                 .thenReturn(new PageImpl<>(List.of(secretary), pageable, 1));
         when(secretaryMapper.toDTO(secretary)).thenReturn(responseDTO);
 
@@ -102,7 +102,7 @@ class SecretaryServiceImplTest {
         assertThat(result.content()).hasSize(1);
         assertThat(result.content().get(0)).isEqualTo(responseDTO);
         assertThat(result.totalElements()).isEqualTo(1);
-        verify(secretaryRepository).findAll(pageable);
+        verify(secretaryRepository).findByIsActiveTrue(pageable);
     }
 
     @Test

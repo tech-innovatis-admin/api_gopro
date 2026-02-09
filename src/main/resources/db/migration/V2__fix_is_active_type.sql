@@ -11,7 +11,7 @@ BEGIN
             ALTER COLUMN is_active TYPE boolean
             USING CASE
                 WHEN is_active IS NULL THEN false
-                WHEN is_active IN ('1', 't', 'true', 'y', 'yes') THEN true
+                WHEN is_active::text IN ('1', 't', 'true', 'y', 'yes') THEN true
                 ELSE false
             END;
     END IF;
