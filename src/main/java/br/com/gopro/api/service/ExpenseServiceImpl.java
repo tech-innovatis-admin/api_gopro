@@ -33,10 +33,12 @@ public class ExpenseServiceImpl implements ExpenseService {
     }
 
     @Override
-    public PageResponseDTO<ExpenseResponseDTO> listAllExpenses(int page, int size) {
+    public PageResponseDTO<ExpenseResponseDTO> listAllExpenses(int page, int size, Long projectId) {
         validatePage(page, size);
         Pageable pageable = PageRequest.of(page, size);
-        Page<Expense> pageResult = expenseRepository.findByIsActiveTrue(pageable);
+        Page<Expense> pageResult = projectId == null
+                ? expenseRepository.findByIsActiveTrue(pageable)
+                : expenseRepository.findByIsActiveTrueAndIncome_IsActiveTrueAndIncome_Project_Id(projectId, pageable);
         List<ExpenseResponseDTO> content = pageResult.getContent().stream()
                 .map(expenseMapper::toDTO)
                 .toList();

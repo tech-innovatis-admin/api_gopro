@@ -15,6 +15,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDate;
 import java.util.List;
 
 @Service
@@ -33,10 +34,17 @@ public class PhaseServiceImpl implements PhaseService {
     }
 
     @Override
-    public PageResponseDTO<PhaseResponseDTO> listAllPhases(int page, int size) {
+    public PageResponseDTO<PhaseResponseDTO> listAllPhases(int page, int size, Long stageId, Long projectId) {
         validatePage(page, size);
         Pageable pageable = PageRequest.of(page, size);
-        Page<Phase> pageResult = phaseRepository.findByIsActiveTrue(pageable);
+        Page<Phase> pageResult;
+        if (stageId != null) {
+            pageResult = phaseRepository.findByIsActiveTrueAndStage_Id(stageId, pageable);
+        } else if (projectId != null) {
+            pageResult = phaseRepository.findByIsActiveTrueAndStage_Goal_Project_Id(projectId, pageable);
+        } else {
+            pageResult = phaseRepository.findByIsActiveTrue(pageable);
+        }
         List<PhaseResponseDTO> content = pageResult.getContent().stream()
                 .map(phaseMapper::toDTO)
                 .toList();
@@ -95,6 +103,37 @@ public class PhaseServiceImpl implements PhaseService {
         phase.setIsActive(true);
         Phase restored = phaseRepository.save(phase);
         return phaseMapper.toDTO(restored);
+    }
+
+    @Override
+    public PhaseResponseDTO concludePhaseById(Long id) {
+        Phase phase = phaseRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Fase nao encontrada"));
+        if (!Boolean.TRUE.equals(phase.getIsActive())) {
+            throw new BusinessException("Nao e possivel concluir uma fase inativa");
+        }
+
+        LocalDate today = LocalDate.now();
+        phase.setDataConclusao(today);
+        if (phase.getDataFim() == null) {
+            phase.setDataFim(today);
+        }
+
+        Phase updated = phaseRepository.save(phase);
+        return phaseMapper.toDTO(updated);
+    }
+
+    @Override
+    public PhaseResponseDTO reopenPhaseById(Long id) {
+        Phase phase = phaseRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Fase nao encontrada"));
+        if (!Boolean.TRUE.equals(phase.getIsActive())) {
+            throw new BusinessException("Nao e possivel reabrir uma fase inativa");
+        }
+
+        phase.setDataConclusao(null);
+        Phase updated = phaseRepository.save(phase);
+        return phaseMapper.toDTO(updated);
     }
 
     private void validatePage(int page, int size) {

@@ -7,7 +7,7 @@ import br.com.gopro.api.dtos.PageResponseDTO;
 
 public interface BudgetTransferService {
     BudgetTransferResponseDTO createBudgetTransfer(BudgetTransferRequestDTO dto);
-    PageResponseDTO<BudgetTransferResponseDTO> listAllBudgetTransfers(int page, int size);
+    PageResponseDTO<BudgetTransferResponseDTO> listAllBudgetTransfers(int page, int size, Long projectId);
     BudgetTransferResponseDTO findBudgetTransferById(Long id);
     BudgetTransferResponseDTO updateBudgetTransferById(Long id, BudgetTransferUpdateDTO dto);
     void deleteBudgetTransferById(Long id);

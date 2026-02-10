@@ -21,6 +21,7 @@ public interface ProjectService {
             ProjectStatusEnum projectStatus,
             ProjectTypeEnum projectType,
             Integer month,
+            Integer year,
             String location,
             Long partnerId
     );

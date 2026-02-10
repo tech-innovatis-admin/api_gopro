@@ -12,5 +12,6 @@ public record StageRequestDTO(
         String descricao,
         LocalDate dataInicio,
         LocalDate dataFim,
+        LocalDate dataConclusao,
         Long createdBy
 ) {}

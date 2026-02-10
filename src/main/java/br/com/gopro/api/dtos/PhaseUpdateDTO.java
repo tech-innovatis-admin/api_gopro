@@ -9,5 +9,6 @@ public record PhaseUpdateDTO(
         String descricao,
         LocalDate dataInicio,
         LocalDate dataFim,
+        LocalDate dataConclusao,
         Long updatedBy
 ) {}

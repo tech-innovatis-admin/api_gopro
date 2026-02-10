@@ -41,9 +41,10 @@ public class GoalController {
     @GetMapping
     public ResponseEntity<PageResponseDTO<GoalResponseDTO>> list(
             @Parameter(description = "Numero da pagina") @RequestParam(defaultValue = "0") int page,
-            @Parameter(description = "Tamanho da pagina") @RequestParam(defaultValue = "10") int size
+            @Parameter(description = "Tamanho da pagina") @RequestParam(defaultValue = "10") int size,
+            @Parameter(description = "ID do projeto para filtro") @RequestParam(required = false) Long projectId
     ) {
-        return ResponseEntity.ok(goalService.listAllGoals(page, size));
+        return ResponseEntity.ok(goalService.listAllGoals(page, size, projectId));
     }
 
     @Operation(summary = "Buscar meta por ID")
@@ -87,5 +88,23 @@ public class GoalController {
     @PatchMapping("/{id}/restore")
     public ResponseEntity<GoalResponseDTO> restore(@PathVariable Long id) {
         return ResponseEntity.ok(goalService.restoreGoalById(id));
+    }
+
+    @Operation(summary = "Concluir meta")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Meta concluida")
+    })
+    @PatchMapping("/{id}/conclude")
+    public ResponseEntity<GoalResponseDTO> conclude(@PathVariable Long id) {
+        return ResponseEntity.ok(goalService.concludeGoalById(id));
+    }
+
+    @Operation(summary = "Reabrir meta")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Meta reaberta")
+    })
+    @PatchMapping("/{id}/reopen")
+    public ResponseEntity<GoalResponseDTO> reopen(@PathVariable Long id) {
+        return ResponseEntity.ok(goalService.reopenGoalById(id));
     }
 }

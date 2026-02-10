@@ -41,9 +41,11 @@ public class PhaseController {
     @GetMapping
     public ResponseEntity<PageResponseDTO<PhaseResponseDTO>> list(
             @Parameter(description = "Numero da pagina") @RequestParam(defaultValue = "0") int page,
-            @Parameter(description = "Tamanho da pagina") @RequestParam(defaultValue = "10") int size
+            @Parameter(description = "Tamanho da pagina") @RequestParam(defaultValue = "10") int size,
+            @Parameter(description = "ID da etapa para filtro") @RequestParam(required = false) Long stageId,
+            @Parameter(description = "ID do projeto para filtro") @RequestParam(required = false) Long projectId
     ) {
-        return ResponseEntity.ok(phaseService.listAllPhases(page, size));
+        return ResponseEntity.ok(phaseService.listAllPhases(page, size, stageId, projectId));
     }
 
     @Operation(summary = "Buscar fase por ID")
@@ -87,5 +89,23 @@ public class PhaseController {
     @PatchMapping("/{id}/restore")
     public ResponseEntity<PhaseResponseDTO> restore(@PathVariable Long id) {
         return ResponseEntity.ok(phaseService.restorePhaseById(id));
+    }
+
+    @Operation(summary = "Concluir fase")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Fase concluida")
+    })
+    @PatchMapping("/{id}/conclude")
+    public ResponseEntity<PhaseResponseDTO> conclude(@PathVariable Long id) {
+        return ResponseEntity.ok(phaseService.concludePhaseById(id));
+    }
+
+    @Operation(summary = "Reabrir fase")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Fase reaberta")
+    })
+    @PatchMapping("/{id}/reopen")
+    public ResponseEntity<PhaseResponseDTO> reopen(@PathVariable Long id) {
+        return ResponseEntity.ok(phaseService.reopenPhaseById(id));
     }
 }

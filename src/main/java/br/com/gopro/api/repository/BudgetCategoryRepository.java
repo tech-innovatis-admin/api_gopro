@@ -9,4 +9,5 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface BudgetCategoryRepository extends JpaRepository<BudgetCategory, Long> {
     Page<BudgetCategory> findByIsActiveTrue(Pageable pageable);
+    Page<BudgetCategory> findByIsActiveTrueAndProject_Id(Long projectId, Pageable pageable);
 }

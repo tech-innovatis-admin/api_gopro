@@ -21,6 +21,7 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.HexFormat;
 import java.util.Set;
 import java.util.UUID;
@@ -49,7 +50,7 @@ public class DocumentServiceImpl implements DocumentService {
 
         String bucket = documentsS3Properties.getBucket();
         if (bucket == null || bucket.isBlank()) {
-            bucket = "not-configured";
+            bucket = "local-documents";
         }
 
         String sanitizedFilename = sanitizeFilename(file.getOriginalFilename());
@@ -83,6 +84,18 @@ public class DocumentServiceImpl implements DocumentService {
             log.error("document_upload_failed ownerType={} ownerId={} s3Key={} error={}", ownerType, ownerId, s3Key, ex.getMessage());
             throw new BusinessException("Falha ao realizar upload do documento");
         }
+    }
+
+    @Override
+    public List<DocumentResponseDTO> listByOwner(DocumentOwnerTypeEnum ownerType, Long ownerId) {
+        validateOwner(ownerType, ownerId);
+
+        return documentRepository
+                .findByOwnerTypeAndOwnerIdAndStatus(ownerType, ownerId, DocumentStatusEnum.AVAILABLE)
+                .stream()
+                .filter(document -> Boolean.TRUE.equals(document.getIsActive()))
+                .map(this::toResponseDTO)
+                .toList();
     }
 
     @Override

@@ -33,10 +33,12 @@ public class BudgetCategoryServiceImpl implements BudgetCategoryService {
     }
 
     @Override
-    public PageResponseDTO<BudgetCategoryResponseDTO> listAllBudgetCategories(int page, int size) {
+    public PageResponseDTO<BudgetCategoryResponseDTO> listAllBudgetCategories(int page, int size, Long projectId) {
         validatePage(page, size);
         Pageable pageable = PageRequest.of(page, size);
-        Page<BudgetCategory> pageResult = budgetCategoryRepository.findByIsActiveTrue(pageable);
+        Page<BudgetCategory> pageResult = projectId == null
+                ? budgetCategoryRepository.findByIsActiveTrue(pageable)
+                : budgetCategoryRepository.findByIsActiveTrueAndProject_Id(projectId, pageable);
         List<BudgetCategoryResponseDTO> content = pageResult.getContent().stream()
                 .map(budgetCategoryMapper::toDTO)
                 .toList();

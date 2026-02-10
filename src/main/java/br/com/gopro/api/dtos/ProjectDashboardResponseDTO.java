@@ -8,6 +8,7 @@ import java.util.List;
 
 public record ProjectDashboardResponseDTO(
         FilterDTO filters,
+        List<Integer> availableYears,
         SummaryDTO summary,
         List<StatusMetricDTO> byStatus,
         List<TypeMetricDTO> byType,
@@ -19,6 +20,7 @@ public record ProjectDashboardResponseDTO(
             ProjectStatusEnum projectStatus,
             ProjectTypeEnum projectType,
             Integer month,
+            Integer year,
             String location,
             Long partnerId
     ) {

@@ -33,10 +33,12 @@ public class DisbursementScheduleServiceImpl implements DisbursementScheduleServ
     }
 
     @Override
-    public PageResponseDTO<DisbursementScheduleResponseDTO> listAllDisbursementSchedules(int page, int size) {
+    public PageResponseDTO<DisbursementScheduleResponseDTO> listAllDisbursementSchedules(int page, int size, Long projectId) {
         validatePage(page, size);
         Pageable pageable = PageRequest.of(page, size);
-        Page<DisbursementSchedule> pageResult = disbursementScheduleRepository.findByIsActiveTrue(pageable);
+        Page<DisbursementSchedule> pageResult = projectId == null
+                ? disbursementScheduleRepository.findByIsActiveTrue(pageable)
+                : disbursementScheduleRepository.findByIsActiveTrueAndProject_Id(projectId, pageable);
         List<DisbursementScheduleResponseDTO> content = pageResult.getContent().stream()
                 .map(disbursementScheduleMapper::toDTO)
                 .toList();

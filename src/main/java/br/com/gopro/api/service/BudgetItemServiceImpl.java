@@ -15,6 +15,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 @Service
@@ -28,15 +29,23 @@ public class BudgetItemServiceImpl implements BudgetItemService {
     public BudgetItemResponseDTO createBudgetItem(BudgetItemRequestDTO dto) {
         BudgetItem budgetItem = budgetItemMapper.toEntity(dto);
         budgetItem.setIsActive(true);
+        applyDefaults(budgetItem);
         BudgetItem saved = budgetItemRepository.save(budgetItem);
         return budgetItemMapper.toDTO(saved);
     }
 
     @Override
-    public PageResponseDTO<BudgetItemResponseDTO> listAllBudgetItems(int page, int size) {
+    public PageResponseDTO<BudgetItemResponseDTO> listAllBudgetItems(int page, int size, Long categoryId, Long projectId) {
         validatePage(page, size);
         Pageable pageable = PageRequest.of(page, size);
-        Page<BudgetItem> pageResult = budgetItemRepository.findByIsActiveTrue(pageable);
+        Page<BudgetItem> pageResult;
+        if (categoryId != null) {
+            pageResult = budgetItemRepository.findByIsActiveTrueAndCategory_Id(categoryId, pageable);
+        } else if (projectId != null) {
+            pageResult = budgetItemRepository.findByIsActiveTrueAndCategory_Project_Id(projectId, pageable);
+        } else {
+            pageResult = budgetItemRepository.findByIsActiveTrue(pageable);
+        }
         List<BudgetItemResponseDTO> content = pageResult.getContent().stream()
                 .map(budgetItemMapper::toDTO)
                 .toList();
@@ -70,6 +79,7 @@ public class BudgetItemServiceImpl implements BudgetItemService {
             throw new BusinessException("Nao e possivel atualizar um item inativo");
         }
         budgetItemMapper.updateEntityFromDTO(dto, budgetItem);
+        applyDefaults(budgetItem);
         BudgetItem updated = budgetItemRepository.save(budgetItem);
         return budgetItemMapper.toDTO(updated);
     }
@@ -103,6 +113,12 @@ public class BudgetItemServiceImpl implements BudgetItemService {
         }
         if (size <= 0 || size > 100) {
             throw new BusinessException("Tamanho da pagina deve estar entre 1 e 100");
+        }
+    }
+
+    private void applyDefaults(BudgetItem budgetItem) {
+        if (budgetItem.getExecutedAmount() == null) {
+            budgetItem.setExecutedAmount(BigDecimal.ZERO);
         }
     }
 }

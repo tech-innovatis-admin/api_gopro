@@ -18,10 +18,10 @@ public interface BudgetTransferMapper {
     @Mapping(target = "updatedBy", ignore = true)
     @Mapping(target = "approvedAt", ignore = true)
     @Mapping(target = "approvedBy", ignore = true)
-    @Mapping(target = "project.id", source = "projectId")
-    @Mapping(target = "fromItem.id", source = "fromItemId")
-    @Mapping(target = "toItem.id", source = "toItemId")
-    @Mapping(target = "document.id", source = "documentId")
+    @Mapping(target = "project", ignore = true)
+    @Mapping(target = "fromItem", ignore = true)
+    @Mapping(target = "toItem", ignore = true)
+    @Mapping(target = "document", ignore = true)
     BudgetTransfer toEntity(BudgetTransferRequestDTO dto);
 
     @Mapping(target = "projectId", source = "project.id")
@@ -34,9 +34,9 @@ public interface BudgetTransferMapper {
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "updatedAt", ignore = true)
     @Mapping(target = "createdBy", ignore = true)
-    @Mapping(target = "project.id", source = "projectId")
-    @Mapping(target = "fromItem.id", source = "fromItemId")
-    @Mapping(target = "toItem.id", source = "toItemId")
-    @Mapping(target = "document.id", source = "documentId")
+    @Mapping(target = "project", ignore = true)
+    @Mapping(target = "fromItem", ignore = true)
+    @Mapping(target = "toItem", ignore = true)
+    @Mapping(target = "document", ignore = true)
     void updateEntityFromDTO(BudgetTransferUpdateDTO dto, @MappingTarget BudgetTransfer budgetTransfer);
 }

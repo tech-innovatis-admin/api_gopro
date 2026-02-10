@@ -15,6 +15,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDate;
 import java.util.List;
 
 @Service
@@ -33,10 +34,12 @@ public class GoalServiceImpl implements GoalService {
     }
 
     @Override
-    public PageResponseDTO<GoalResponseDTO> listAllGoals(int page, int size) {
+    public PageResponseDTO<GoalResponseDTO> listAllGoals(int page, int size, Long projectId) {
         validatePage(page, size);
         Pageable pageable = PageRequest.of(page, size);
-        Page<Goal> pageResult = goalRepository.findByIsActiveTrue(pageable);
+        Page<Goal> pageResult = projectId == null
+                ? goalRepository.findByIsActiveTrue(pageable)
+                : goalRepository.findByIsActiveTrueAndProject_Id(projectId, pageable);
         List<GoalResponseDTO> content = pageResult.getContent().stream()
                 .map(goalMapper::toDTO)
                 .toList();
@@ -95,6 +98,37 @@ public class GoalServiceImpl implements GoalService {
         goal.setIsActive(true);
         Goal restored = goalRepository.save(goal);
         return goalMapper.toDTO(restored);
+    }
+
+    @Override
+    public GoalResponseDTO concludeGoalById(Long id) {
+        Goal goal = goalRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Meta nao encontrada"));
+        if (!Boolean.TRUE.equals(goal.getIsActive())) {
+            throw new BusinessException("Nao e possivel concluir uma meta inativa");
+        }
+
+        LocalDate today = LocalDate.now();
+        goal.setDataConclusao(today);
+        if (goal.getDataFim() == null) {
+            goal.setDataFim(today);
+        }
+
+        Goal updated = goalRepository.save(goal);
+        return goalMapper.toDTO(updated);
+    }
+
+    @Override
+    public GoalResponseDTO reopenGoalById(Long id) {
+        Goal goal = goalRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Meta nao encontrada"));
+        if (!Boolean.TRUE.equals(goal.getIsActive())) {
+            throw new BusinessException("Nao e possivel reabrir uma meta inativa");
+        }
+
+        goal.setDataConclusao(null);
+        Goal updated = goalRepository.save(goal);
+        return goalMapper.toDTO(updated);
     }
 
     private void validatePage(int page, int size) {

@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.time.Duration;
+import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -47,6 +48,20 @@ public class DocumentController {
     ) {
         DocumentResponseDTO document = documentService.upload(file, ownerType, ownerId, category, null);
         return ResponseEntity.status(201).body(document);
+    }
+
+    @Operation(summary = "Listar documentos por owner")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Documentos listados com sucesso")
+    })
+    @GetMapping
+    public ResponseEntity<List<DocumentResponseDTO>> listByOwner(
+            @Parameter(description = "Tipo do dono do documento")
+            @RequestParam DocumentOwnerTypeEnum ownerType,
+            @Parameter(description = "ID do dono do documento")
+            @RequestParam Long ownerId
+    ) {
+        return ResponseEntity.ok(documentService.listByOwner(ownerType, ownerId));
     }
 
     @Operation(summary = "Buscar documento por ID")

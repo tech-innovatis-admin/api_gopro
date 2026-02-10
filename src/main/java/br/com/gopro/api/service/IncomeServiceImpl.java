@@ -33,10 +33,12 @@ public class IncomeServiceImpl implements IncomeService {
     }
 
     @Override
-    public PageResponseDTO<IncomeResponseDTO> listAllIncomes(int page, int size) {
+    public PageResponseDTO<IncomeResponseDTO> listAllIncomes(int page, int size, Long projectId) {
         validatePage(page, size);
         Pageable pageable = PageRequest.of(page, size);
-        Page<Income> pageResult = incomeRepository.findByIsActiveTrue(pageable);
+        Page<Income> pageResult = projectId == null
+                ? incomeRepository.findByIsActiveTrue(pageable)
+                : incomeRepository.findByIsActiveTrueAndProject_Id(projectId, pageable);
         List<IncomeResponseDTO> content = pageResult.getContent().stream()
                 .map(incomeMapper::toDTO)
                 .toList();

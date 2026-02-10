@@ -11,6 +11,7 @@ public record PhaseResponseDTO(
         String descricao,
         LocalDate dataInicio,
         LocalDate dataFim,
+        LocalDate dataConclusao,
         Boolean isActive,
         LocalDateTime createdAt,
         LocalDateTime updatedAt,

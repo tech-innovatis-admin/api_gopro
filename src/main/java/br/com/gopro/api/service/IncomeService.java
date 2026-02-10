@@ -7,7 +7,7 @@ import br.com.gopro.api.dtos.PageResponseDTO;
 
 public interface IncomeService {
     IncomeResponseDTO createIncome(IncomeRequestDTO dto);
-    PageResponseDTO<IncomeResponseDTO> listAllIncomes(int page, int size);
+    PageResponseDTO<IncomeResponseDTO> listAllIncomes(int page, int size, Long projectId);
     IncomeResponseDTO findIncomeById(Long id);
     IncomeResponseDTO updateIncomeById(Long id, IncomeUpdateDTO dto);
     void deleteIncomeById(Long id);

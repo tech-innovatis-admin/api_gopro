@@ -9,4 +9,6 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface PhaseRepository extends JpaRepository<Phase, Long> {
     Page<Phase> findByIsActiveTrue(Pageable pageable);
+    Page<Phase> findByIsActiveTrueAndStage_Id(Long stageId, Pageable pageable);
+    Page<Phase> findByIsActiveTrueAndStage_Goal_Project_Id(Long projectId, Pageable pageable);
 }

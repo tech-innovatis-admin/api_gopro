@@ -7,7 +7,7 @@ import br.com.gopro.api.dtos.PageResponseDTO;
 
 public interface ExpenseService {
     ExpenseResponseDTO createExpense(ExpenseRequestDTO dto);
-    PageResponseDTO<ExpenseResponseDTO> listAllExpenses(int page, int size);
+    PageResponseDTO<ExpenseResponseDTO> listAllExpenses(int page, int size, Long projectId);
     ExpenseResponseDTO findExpenseById(Long id);
     ExpenseResponseDTO updateExpenseById(Long id, ExpenseUpdateDTO dto);
     void deleteExpenseById(Long id);

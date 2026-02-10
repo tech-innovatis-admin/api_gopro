@@ -34,6 +34,19 @@ public class BudgetTransferController {
         return ResponseEntity.status(201).body(created);
     }
 
+    @Operation(summary = "Criar remanejamento de rubrica")
+    @ApiResponses({
+            @ApiResponse(responseCode = "201", description = "Transferencia de rubrica criada com sucesso"),
+            @ApiResponse(responseCode = "400", description = "Dados invalidos")
+    })
+    @PostMapping("/rubrica")
+    public ResponseEntity<BudgetTransferResponseDTO> createRubricaTransfer(
+            @Valid @RequestBody BudgetTransferRequestDTO dto
+    ) {
+        BudgetTransferResponseDTO created = budgetTransferService.createBudgetTransfer(dto);
+        return ResponseEntity.status(201).body(created);
+    }
+
     @Operation(summary = "Listar remanejamentos")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Lista retornada com sucesso")
@@ -41,9 +54,10 @@ public class BudgetTransferController {
     @GetMapping
     public ResponseEntity<PageResponseDTO<BudgetTransferResponseDTO>> list(
             @Parameter(description = "Numero da pagina") @RequestParam(defaultValue = "0") int page,
-            @Parameter(description = "Tamanho da pagina") @RequestParam(defaultValue = "10") int size
+            @Parameter(description = "Tamanho da pagina") @RequestParam(defaultValue = "10") int size,
+            @Parameter(description = "ID do projeto para filtro") @RequestParam(required = false) Long projectId
     ) {
-        return ResponseEntity.ok(budgetTransferService.listAllBudgetTransfers(page, size));
+        return ResponseEntity.ok(budgetTransferService.listAllBudgetTransfers(page, size, projectId));
     }
 
     @Operation(summary = "Buscar remanejamento por ID")

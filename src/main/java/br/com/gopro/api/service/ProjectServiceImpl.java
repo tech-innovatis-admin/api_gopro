@@ -15,8 +15,13 @@ import br.com.gopro.api.model.Partner;
 import br.com.gopro.api.model.Project;
 import br.com.gopro.api.repository.ExpenseRepository;
 import br.com.gopro.api.repository.IncomeRepository;
+import br.com.gopro.api.repository.PartnerRepository;
+import br.com.gopro.api.repository.PeopleRepository;
 import br.com.gopro.api.repository.ProjectRepository;
+import br.com.gopro.api.repository.PublicAgencyRepository;
+import br.com.gopro.api.repository.SecretaryRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -45,10 +50,19 @@ public class ProjectServiceImpl implements ProjectService {
     private final ProjectMapper projectMapper;
     private final IncomeRepository incomeRepository;
     private final ExpenseRepository expenseRepository;
+    private final PartnerRepository partnerRepository;
+    private final PublicAgencyRepository publicAgencyRepository;
+    private final SecretaryRepository secretaryRepository;
+    private final PeopleRepository peopleRepository;
     private static final Locale PT_BR = new Locale("pt", "BR");
+    @Value("${app.project.max-contract-value:9999999999999.99}")
+    private BigDecimal maxContractValue;
 
     @Override
     public ProjectResponseDTO createProject(ProjectRequestDTO dto) {
+        validateContractValue(dto.contractValue());
+        validateReferencesForCreate(dto);
+
         Project project = projectMapper.toEntity(dto);
         project.setIsActive(true);
         if (project.getTotalReceived() == null) {
@@ -101,6 +115,12 @@ public class ProjectServiceImpl implements ProjectService {
         if (!Boolean.TRUE.equals(project.getIsActive())) {
             throw new BusinessException("Nao e possivel atualizar um projeto inativo");
         }
+
+        validateReferencesForUpdate(dto);
+        if (dto.contractValue() != null) {
+            validateContractValue(dto.contractValue());
+        }
+
         projectMapper.updateEntityFromDTO(dto, project);
         Project updated = projectRepository.save(project);
         return projectMapper.toDTO(updated);
@@ -149,16 +169,27 @@ public class ProjectServiceImpl implements ProjectService {
             ProjectStatusEnum projectStatus,
             ProjectTypeEnum projectType,
             Integer month,
+            Integer year,
             String location,
             Long partnerId
     ) {
         validateMonth(month);
+        validateYear(year);
 
         List<Project> activeProjects = projectRepository.findByIsActiveTrue();
+        List<Integer> availableYears = activeProjects.stream()
+                .map(this::getReferenceDate)
+                .filter(Objects::nonNull)
+                .map(LocalDate::getYear)
+                .distinct()
+                .sorted(Comparator.reverseOrder())
+                .toList();
+
         List<Project> filteredProjects = activeProjects.stream()
                 .filter(project -> projectStatus == null || projectStatus == project.getProjectStatus())
                 .filter(project -> projectType == null || projectType == project.getProjectType())
                 .filter(project -> month == null || monthMatches(project, month))
+                .filter(project -> year == null || yearMatches(project, year))
                 .filter(project -> partnerId == null || partnerMatches(project, partnerId))
                 .filter(project -> matchesLocation(project, location))
                 .toList();
@@ -251,9 +282,11 @@ public class ProjectServiceImpl implements ProjectService {
                         projectStatus,
                         projectType,
                         month,
+                        year,
                         trimToNull(location),
                         partnerId
                 ),
+                availableYears,
                 new ProjectDashboardResponseDTO.SummaryDTO(
                         filteredProjects.size(),
                         totalValue
@@ -284,9 +317,37 @@ public class ProjectServiceImpl implements ProjectService {
         }
     }
 
+    private void validateYear(Integer year) {
+        if (year == null) {
+            return;
+        }
+        if (year < 1900 || year > 3000) {
+            throw new BusinessException("Ano deve estar entre 1900 e 3000");
+        }
+    }
+
+    private void validateContractValue(BigDecimal contractValue) {
+        if (contractValue == null) {
+            return;
+        }
+        if (contractValue.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new BusinessException("Valor do projeto deve ser maior que zero");
+        }
+        if (maxContractValue != null && contractValue.compareTo(maxContractValue) > 0) {
+            throw new BusinessException(
+                    "Valor do projeto nao pode ser maior que " + maxContractValue.toPlainString()
+            );
+        }
+    }
+
     private boolean monthMatches(Project project, int month) {
         LocalDate referenceDate = getReferenceDate(project);
         return referenceDate != null && referenceDate.getMonthValue() == month;
+    }
+
+    private boolean yearMatches(Project project, int year) {
+        LocalDate referenceDate = getReferenceDate(project);
+        return referenceDate != null && referenceDate.getYear() == year;
     }
 
     private LocalDate getReferenceDate(Project project) {
@@ -406,5 +467,80 @@ public class ProjectServiceImpl implements ProjectService {
     }
 
     private record LocationKey(String location, String city, String state) {
+    }
+
+    private void validateReferencesForCreate(ProjectRequestDTO dto) {
+        requireActivePartner(dto.primaryPartnerId(), "Parceiro primario");
+        requireActivePublicAgency(dto.primaryClientId(), "Cliente primario");
+
+        if (dto.secundaryPartnerId() != null) {
+            requireActivePartner(dto.secundaryPartnerId(), "Parceiro secundario");
+        }
+
+        if (dto.secundaryClientId() != null) {
+            requireActiveSecretary(dto.secundaryClientId(), "Cliente secundario");
+        }
+
+        if (dto.cordinatorId() != null) {
+            requireActivePeople(dto.cordinatorId(), "Coordenador");
+        }
+    }
+
+    private void validateReferencesForUpdate(ProjectUpdateDTO dto) {
+        if (dto.primaryPartnerId() != null) {
+            requireActivePartner(dto.primaryPartnerId(), "Parceiro primario");
+        }
+
+        if (dto.primaryClientId() != null) {
+            requireActivePublicAgency(dto.primaryClientId(), "Cliente primario");
+        }
+
+        if (dto.secundaryPartnerId() != null) {
+            requireActivePartner(dto.secundaryPartnerId(), "Parceiro secundario");
+        }
+
+        if (dto.secundaryClientId() != null) {
+            requireActiveSecretary(dto.secundaryClientId(), "Cliente secundario");
+        }
+
+        if (dto.cordinatorId() != null) {
+            requireActivePeople(dto.cordinatorId(), "Coordenador");
+        }
+    }
+
+    private void requireActivePartner(Long id, String label) {
+        var partner = partnerRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException(label + " nao encontrado"));
+
+        if (!Boolean.TRUE.equals(partner.getIsActive())) {
+            throw new BusinessException(label + " inativo");
+        }
+    }
+
+    private void requireActivePublicAgency(Long id, String label) {
+        var agency = publicAgencyRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException(label + " nao encontrado"));
+
+        if (!Boolean.TRUE.equals(agency.getIsActive())) {
+            throw new BusinessException(label + " inativo");
+        }
+    }
+
+    private void requireActiveSecretary(Long id, String label) {
+        var secretary = secretaryRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException(label + " nao encontrado"));
+
+        if (!Boolean.TRUE.equals(secretary.getIsActive())) {
+            throw new BusinessException(label + " inativo");
+        }
+    }
+
+    private void requireActivePeople(Long id, String label) {
+        var people = peopleRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException(label + " nao encontrado"));
+
+        if (!Boolean.TRUE.equals(people.getIsActive())) {
+            throw new BusinessException(label + " inativo");
+        }
     }
 }

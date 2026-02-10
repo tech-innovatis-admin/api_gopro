@@ -9,4 +9,5 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface BudgetTransferRepository extends JpaRepository<BudgetTransfer, Long> {
     Page<BudgetTransfer> findByIsActiveTrue(Pageable pageable);
+    Page<BudgetTransfer> findByIsActiveTrueAndProject_Id(Long projectId, Pageable pageable);
 }

@@ -75,13 +75,15 @@ public class ProjectController {
             @RequestParam(required = false) ProjectTypeEnum projectType,
             @Parameter(description = "Filtrar por mes de referencia (1-12)")
             @RequestParam(required = false) Integer month,
+            @Parameter(description = "Filtrar por ano de referencia (ex: 2026)")
+            @RequestParam(required = false) Integer year,
             @Parameter(description = "Filtrar por texto da localidade (cidade, estado ou local de execucao)")
             @RequestParam(required = false) String location,
             @Parameter(description = "Filtrar por parceiro (id primario ou secundario)")
             @RequestParam(required = false) Long partnerId
     ) {
         return ResponseEntity.ok(
-                projectService.getDashboard(projectStatus, projectType, month, location, partnerId)
+                projectService.getDashboard(projectStatus, projectType, month, year, location, partnerId)
         );
     }
 
@@ -109,7 +111,7 @@ public class ProjectController {
         return ResponseEntity.ok(projectAnalyticsService.getTypeDistributionAnalytics(request));
     }
 
-    @Operation(summary = "Filtrar contratos por mes do ano")
+    @Operation(summary = "Filtrar contratos por mes e ano de referencia")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Dados retornados com sucesso"),
             @ApiResponse(responseCode = "400", description = "Filtro invalido")

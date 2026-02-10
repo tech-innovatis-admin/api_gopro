@@ -44,9 +44,10 @@ public class BudgetCategoryController {
     @GetMapping
     public ResponseEntity<PageResponseDTO<BudgetCategoryResponseDTO>> list(
             @Parameter(description = "Numero da pagina") @RequestParam(defaultValue = "0") int page,
-            @Parameter(description = "Tamanho da pagina") @RequestParam(defaultValue = "10") int size
+            @Parameter(description = "Tamanho da pagina") @RequestParam(defaultValue = "10") int size,
+            @Parameter(description = "ID do projeto para filtro") @RequestParam(required = false) Long projectId
     ) {
-        return ResponseEntity.ok(budgetCategoryService.listAllBudgetCategories(page, size));
+        return ResponseEntity.ok(budgetCategoryService.listAllBudgetCategories(page, size, projectId));
     }
 
     @Operation(summary = "Buscar categoria orcamentaria por ID")

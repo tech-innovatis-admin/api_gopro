@@ -51,17 +51,28 @@ public interface ProjectRepository extends JpaRepository<Project, Long> {
 """)
     List<ProjectTypeSummaryProjection> aggregateTypeDistribution(@Param("projectStatus") ProjectStatusEnum projectStatus);
 
-    @Query("""
+    @Query(value = """
     select
-        function('month', coalesce(p.startDate, p.openingDate)) as month,
-        count(p) as contracts,
-        coalesce(sum(p.contractValue), 0) as totalValue
-    from Project p
-    where p.isActive = true
-      and coalesce(p.startDate, p.openingDate) is not null
-    group by function('month', coalesce(p.startDate, p.openingDate))
-""")
-    List<ProjectMonthSummaryProjection> aggregateByMonth();
+        cast(extract(month from coalesce(p.start_date, p.opening_date)) as integer) as month,
+        count(p.id) as contracts,
+        coalesce(sum(p.contract_value), 0) as "totalValue"
+    from projects p
+    where p.is_active = true
+      and coalesce(p.start_date, p.opening_date) is not null
+      and cast(extract(year from coalesce(p.start_date, p.opening_date)) as integer) = :year
+    group by cast(extract(month from coalesce(p.start_date, p.opening_date)) as integer)
+""", nativeQuery = true)
+    List<ProjectMonthSummaryProjection> aggregateByMonth(@Param("year") Integer year);
+
+    @Query(value = """
+    select distinct
+        cast(extract(year from coalesce(p.start_date, p.opening_date)) as integer)
+    from projects p
+    where p.is_active = true
+      and coalesce(p.start_date, p.opening_date) is not null
+    order by cast(extract(year from coalesce(p.start_date, p.opening_date)) as integer) desc
+""", nativeQuery = true)
+    List<Integer> findAvailableYearsForMonthAnalytics();
 
     @Query("""
     select

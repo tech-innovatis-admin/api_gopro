@@ -5,8 +5,10 @@ import java.util.List;
 
 public record ProjectMonthResponseDTO(
         int requestedMonth,
+        int requestedYear,
         long totalContracts,
         BigDecimal totalValue,
+        List<Integer> availableYears,
         List<ProjectMonthMetricDTO> months
 ) {
 }

@@ -27,7 +27,9 @@ import org.springframework.stereotype.Service;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Month;
+import java.time.Year;
 import java.time.format.TextStyle;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
@@ -99,12 +101,25 @@ public class ProjectAnalyticsServiceImpl implements ProjectAnalyticsService {
         }
 
         int month = request.getMonth();
+        int year = request.getYear() == null ? Year.now().getValue() : request.getYear();
         if (month < 1 || month > 12) {
             throw new BusinessException("Mes deve estar entre 1 e 12");
         }
 
+        List<Integer> availableYears = projectRepository.findAvailableYearsForMonthAnalytics()
+                .stream()
+                .filter(Objects::nonNull)
+                .distinct()
+                .sorted(Comparator.reverseOrder())
+                .collect(Collectors.toCollection(ArrayList::new));
+
+        if (availableYears.stream().noneMatch(item -> item == year)) {
+            availableYears.add(year);
+            availableYears.sort(Comparator.reverseOrder());
+        }
+
         Map<Integer, ProjectRepository.ProjectMonthSummaryProjection> byMonth =
-                projectRepository.aggregateByMonth()
+                projectRepository.aggregateByMonth(year)
                         .stream()
                         .collect(Collectors.toMap(ProjectRepository.ProjectMonthSummaryProjection::getMonth, Function.identity()));
 
@@ -127,8 +142,10 @@ public class ProjectAnalyticsServiceImpl implements ProjectAnalyticsService {
 
         return new ProjectMonthResponseDTO(
                 month,
+                year,
                 requestedMonth.contracts(),
                 requestedMonth.totalValue(),
+                List.copyOf(availableYears),
                 months
         );
     }

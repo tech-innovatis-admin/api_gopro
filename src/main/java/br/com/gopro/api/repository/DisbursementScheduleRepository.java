@@ -9,4 +9,5 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface DisbursementScheduleRepository extends JpaRepository<DisbursementSchedule, Long> {
     Page<DisbursementSchedule> findByIsActiveTrue(Pageable pageable);
+    Page<DisbursementSchedule> findByIsActiveTrueAndProject_Id(Long projectId, Pageable pageable);
 }

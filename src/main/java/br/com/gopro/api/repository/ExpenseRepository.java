@@ -14,6 +14,7 @@ import java.math.BigDecimal;
 public interface ExpenseRepository extends JpaRepository<Expense, Long> {
     Page<Expense> findAll(Pageable pageable);
     Page<Expense> findByIsActiveTrue(Pageable pageable);
+    Page<Expense> findByIsActiveTrueAndIncome_IsActiveTrueAndIncome_Project_Id(Long projectId, Pageable pageable);
 
     @Query("""
     select coalesce(sum(e.amount), 0)

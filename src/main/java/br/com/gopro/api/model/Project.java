@@ -44,7 +44,7 @@ public class Project {
     @JoinColumn(name = "primary_partner_id", nullable = false, foreignKey = @ForeignKey(name = "fk_project_primary_partner"))
     private Partner primaryPartner;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "secundary_partner_id", foreignKey = @ForeignKey(name = "fk_project_secundary_partner"))
     private Partner secundaryPartner;
 
@@ -52,11 +52,11 @@ public class Project {
     @JoinColumn(name = "primary_client_id", nullable = false, foreignKey = @ForeignKey(name = "fk_project_primary_client"))
     private PublicAgency primaryClient;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "secundary_client_id", foreignKey = @ForeignKey(name = "fk_project_secundary_client"))
     private Secretary secundaryClient;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "cordinator_id", foreignKey = @ForeignKey(name = "fk_project_cordinator_id"))
     private People cordinator;
 

@@ -60,13 +60,18 @@ class ProjectAnalyticsServiceImplTest {
     void getMonthAnalytics_shouldReturnRequestedMonthAndCompleteSeries() {
         ProjectMonthRequestDTO request = new ProjectMonthRequestDTO();
         request.setMonth(1);
+        request.setYear(2026);
 
-        when(projectRepository.aggregateByMonth())
+        when(projectRepository.findAvailableYearsForMonthAnalytics())
+                .thenReturn(List.of(2026, 2025));
+        when(projectRepository.aggregateByMonth(2026))
                 .thenReturn(List.of(monthSummary(1, 4L, "850.00")));
 
         ProjectMonthResponseDTO result = service.getMonthAnalytics(request);
 
         assertThat(result.requestedMonth()).isEqualTo(1);
+        assertThat(result.requestedYear()).isEqualTo(2026);
+        assertThat(result.availableYears()).containsExactly(2026, 2025);
         assertThat(result.totalContracts()).isEqualTo(4L);
         assertThat(result.totalValue()).isEqualByComparingTo("850.00");
         assertThat(result.months()).hasSize(12);

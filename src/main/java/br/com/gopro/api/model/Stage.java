@@ -39,6 +39,10 @@ public class Stage {
 
     @Column(name = "data_fim")
     private LocalDate dataFim;
+
+    @Column(name = "data_conclusao")
+    private LocalDate dataConclusao;
+
     @Column(name = "is_active")
     private Boolean isActive;
 

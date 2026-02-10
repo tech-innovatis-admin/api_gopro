@@ -15,6 +15,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDate;
 import java.util.List;
 
 @Service
@@ -33,10 +34,17 @@ public class StageServiceImpl implements StageService {
     }
 
     @Override
-    public PageResponseDTO<StageResponseDTO> listAllStages(int page, int size) {
+    public PageResponseDTO<StageResponseDTO> listAllStages(int page, int size, Long goalId, Long projectId) {
         validatePage(page, size);
         Pageable pageable = PageRequest.of(page, size);
-        Page<Stage> pageResult = stageRepository.findByIsActiveTrue(pageable);
+        Page<Stage> pageResult;
+        if (goalId != null) {
+            pageResult = stageRepository.findByIsActiveTrueAndGoal_Id(goalId, pageable);
+        } else if (projectId != null) {
+            pageResult = stageRepository.findByIsActiveTrueAndGoal_Project_Id(projectId, pageable);
+        } else {
+            pageResult = stageRepository.findByIsActiveTrue(pageable);
+        }
         List<StageResponseDTO> content = pageResult.getContent().stream()
                 .map(stageMapper::toDTO)
                 .toList();
@@ -95,6 +103,37 @@ public class StageServiceImpl implements StageService {
         stage.setIsActive(true);
         Stage restored = stageRepository.save(stage);
         return stageMapper.toDTO(restored);
+    }
+
+    @Override
+    public StageResponseDTO concludeStageById(Long id) {
+        Stage stage = stageRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Etapa nao encontrada"));
+        if (!Boolean.TRUE.equals(stage.getIsActive())) {
+            throw new BusinessException("Nao e possivel concluir uma etapa inativa");
+        }
+
+        LocalDate today = LocalDate.now();
+        stage.setDataConclusao(today);
+        if (stage.getDataFim() == null) {
+            stage.setDataFim(today);
+        }
+
+        Stage updated = stageRepository.save(stage);
+        return stageMapper.toDTO(updated);
+    }
+
+    @Override
+    public StageResponseDTO reopenStageById(Long id) {
+        Stage stage = stageRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Etapa nao encontrada"));
+        if (!Boolean.TRUE.equals(stage.getIsActive())) {
+            throw new BusinessException("Nao e possivel reabrir uma etapa inativa");
+        }
+
+        stage.setDataConclusao(null);
+        Stage updated = stageRepository.save(stage);
+        return stageMapper.toDTO(updated);
     }
 
     private void validatePage(int page, int size) {

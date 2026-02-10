@@ -54,7 +54,7 @@ public class Income {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
-    @Column(name = "created_by", updatable = false, nullable = false)
+    @Column(name = "created_by", updatable = false)
     private Long createdBy;
 
     @Column(name = "updated_by")

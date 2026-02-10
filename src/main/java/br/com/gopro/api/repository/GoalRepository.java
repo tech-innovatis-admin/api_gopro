@@ -9,4 +9,5 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface GoalRepository extends JpaRepository<Goal, Long> {
     Page<Goal> findByIsActiveTrue(Pageable pageable);
+    Page<Goal> findByIsActiveTrueAndProject_Id(Long projectId, Pageable pageable);
 }

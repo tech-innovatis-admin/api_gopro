@@ -7,7 +7,7 @@ import br.com.gopro.api.dtos.PageResponseDTO;
 
 public interface DisbursementScheduleService {
     DisbursementScheduleResponseDTO createDisbursementSchedule(DisbursementScheduleRequestDTO dto);
-    PageResponseDTO<DisbursementScheduleResponseDTO> listAllDisbursementSchedules(int page, int size);
+    PageResponseDTO<DisbursementScheduleResponseDTO> listAllDisbursementSchedules(int page, int size, Long projectId);
     DisbursementScheduleResponseDTO findDisbursementScheduleById(Long id);
     DisbursementScheduleResponseDTO updateDisbursementScheduleById(Long id, DisbursementScheduleUpdateDTO dto);
     void deleteDisbursementScheduleById(Long id);

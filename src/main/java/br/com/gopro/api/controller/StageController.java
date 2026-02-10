@@ -41,9 +41,11 @@ public class StageController {
     @GetMapping
     public ResponseEntity<PageResponseDTO<StageResponseDTO>> list(
             @Parameter(description = "Numero da pagina") @RequestParam(defaultValue = "0") int page,
-            @Parameter(description = "Tamanho da pagina") @RequestParam(defaultValue = "10") int size
+            @Parameter(description = "Tamanho da pagina") @RequestParam(defaultValue = "10") int size,
+            @Parameter(description = "ID da meta para filtro") @RequestParam(required = false) Long goalId,
+            @Parameter(description = "ID do projeto para filtro") @RequestParam(required = false) Long projectId
     ) {
-        return ResponseEntity.ok(stageService.listAllStages(page, size));
+        return ResponseEntity.ok(stageService.listAllStages(page, size, goalId, projectId));
     }
 
     @Operation(summary = "Buscar etapa por ID")
@@ -87,5 +89,23 @@ public class StageController {
     @PatchMapping("/{id}/restore")
     public ResponseEntity<StageResponseDTO> restore(@PathVariable Long id) {
         return ResponseEntity.ok(stageService.restoreStageById(id));
+    }
+
+    @Operation(summary = "Concluir etapa")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Etapa concluida")
+    })
+    @PatchMapping("/{id}/conclude")
+    public ResponseEntity<StageResponseDTO> conclude(@PathVariable Long id) {
+        return ResponseEntity.ok(stageService.concludeStageById(id));
+    }
+
+    @Operation(summary = "Reabrir etapa")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Etapa reaberta")
+    })
+    @PatchMapping("/{id}/reopen")
+    public ResponseEntity<StageResponseDTO> reopen(@PathVariable Long id) {
+        return ResponseEntity.ok(stageService.reopenStageById(id));
     }
 }
