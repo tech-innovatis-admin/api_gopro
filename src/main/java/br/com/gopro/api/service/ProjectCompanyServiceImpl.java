@@ -1,6 +1,7 @@
 package br.com.gopro.api.service;
 
 import br.com.gopro.api.dtos.PageResponseDTO;
+import br.com.gopro.api.dtos.ProjectCompanyDetailedResponseDTO;
 import br.com.gopro.api.dtos.ProjectCompanyRequestDTO;
 import br.com.gopro.api.dtos.ProjectCompanyResponseDTO;
 import br.com.gopro.api.dtos.ProjectCompanyUpdateDTO;
@@ -15,6 +16,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
+import java.time.Year;
 import java.util.List;
 
 @Service
@@ -27,6 +29,9 @@ public class ProjectCompanyServiceImpl implements ProjectCompanyService {
     @Override
     public ProjectCompanyResponseDTO createProjectCompany(ProjectCompanyRequestDTO dto) {
         ProjectCompany projectCompany = projectCompanyMapper.toEntity(dto);
+        if (isBlank(projectCompany.getContractNumber())) {
+            projectCompany.setContractNumber(generateContractNumber());
+        }
         projectCompany.setIsActive(true);
         ProjectCompany saved = projectCompanyRepository.save(projectCompany);
         return projectCompanyMapper.toDTO(saved);
@@ -37,12 +42,31 @@ public class ProjectCompanyServiceImpl implements ProjectCompanyService {
         validatePage(page, size);
         Pageable pageable = PageRequest.of(page, size);
         Page<ProjectCompany> pageResult = projectCompanyRepository.findByIsActiveTrue(pageable);
-        List<ProjectCompanyResponseDTO> content = pageResult.getContent().stream()
-                .map(projectCompanyMapper::toDTO)
-                .toList();
+        return toPageResponse(pageResult);
+    }
+
+    @Override
+    public PageResponseDTO<ProjectCompanyResponseDTO> listProjectCompaniesByProjectId(Long projectId, int page, int size) {
+        validatePage(page, size);
+        validateProjectId(projectId);
+        Pageable pageable = PageRequest.of(page, size);
+        Page<ProjectCompany> pageResult = projectCompanyRepository.findByProject_IdAndIsActiveTrue(projectId, pageable);
+        return toPageResponse(pageResult);
+    }
+
+    @Override
+    public PageResponseDTO<ProjectCompanyDetailedResponseDTO> listProjectCompaniesDetailed(Long projectId, int page, int size) {
+        validatePage(page, size);
+        if (projectId != null) {
+            validateProjectId(projectId);
+        }
+
+        Pageable pageable = PageRequest.of(page, size);
+        Page<ProjectCompanyDetailedResponseDTO> pageResult =
+                projectCompanyRepository.findDetailedByProjectId(projectId, pageable);
 
         return new PageResponseDTO<>(
-                content,
+                pageResult.getContent(),
                 pageResult.getNumber(),
                 pageResult.getSize(),
                 pageResult.getTotalElements(),
@@ -70,6 +94,9 @@ public class ProjectCompanyServiceImpl implements ProjectCompanyService {
             throw new BusinessException("Nao e possivel atualizar um vinculo inativo");
         }
         projectCompanyMapper.updateEntityFromDTO(dto, projectCompany);
+        if (isBlank(projectCompany.getContractNumber())) {
+            projectCompany.setContractNumber(generateContractNumber());
+        }
         ProjectCompany updated = projectCompanyRepository.save(projectCompany);
         return projectCompanyMapper.toDTO(updated);
     }
@@ -104,5 +131,37 @@ public class ProjectCompanyServiceImpl implements ProjectCompanyService {
         if (size <= 0 || size > 100) {
             throw new BusinessException("Tamanho da pagina deve estar entre 1 e 100");
         }
+    }
+
+    private void validateProjectId(Long projectId) {
+        if (projectId == null || projectId <= 0) {
+            throw new BusinessException("ProjectId invalido");
+        }
+    }
+
+    private PageResponseDTO<ProjectCompanyResponseDTO> toPageResponse(Page<ProjectCompany> pageResult) {
+        List<ProjectCompanyResponseDTO> content = pageResult.getContent().stream()
+                .map(projectCompanyMapper::toDTO)
+                .toList();
+
+        return new PageResponseDTO<>(
+                content,
+                pageResult.getNumber(),
+                pageResult.getSize(),
+                pageResult.getTotalElements(),
+                pageResult.getTotalPages(),
+                pageResult.isFirst(),
+                pageResult.isLast()
+        );
+    }
+
+    private String generateContractNumber() {
+        Long sequence = projectCompanyRepository.nextContractNumberSequence();
+        int year = Year.now().getValue();
+        return String.format("CT-%d-%06d", year, sequence);
+    }
+
+    private boolean isBlank(String value) {
+        return value == null || value.trim().isEmpty();
     }
 }

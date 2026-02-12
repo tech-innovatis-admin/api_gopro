@@ -30,7 +30,7 @@ public class ProjectCompany {
     @JoinColumn(name = "company_id", nullable = false, foreignKey = @ForeignKey(name = "fk_project_company_company_id"))
     private Company company;
 
-    @Column(name = "contract_number", length = 100)
+    @Column(name = "contract_number", length = 100, nullable = false, unique = true)
     private String contractNumber;
 
     @Column(name = "description", columnDefinition = "text")

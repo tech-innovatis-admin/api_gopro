@@ -6,6 +6,7 @@ import br.com.gopro.api.dtos.ProjectRequestDTO;
 import br.com.gopro.api.dtos.ProjectResponseDTO;
 import br.com.gopro.api.dtos.ProjectTotalsDTO;
 import br.com.gopro.api.dtos.ProjectUpdateDTO;
+import br.com.gopro.api.enums.ProjectGovIfEnum;
 import br.com.gopro.api.enums.ProjectStatusEnum;
 import br.com.gopro.api.enums.ProjectTypeEnum;
 
@@ -20,6 +21,7 @@ public interface ProjectService {
     ProjectDashboardResponseDTO getDashboard(
             ProjectStatusEnum projectStatus,
             ProjectTypeEnum projectType,
+            ProjectGovIfEnum projectGovIf,
             Integer month,
             Integer year,
             String location,

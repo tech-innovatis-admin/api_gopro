@@ -33,7 +33,7 @@ public class People {
     @Column(name = "phone", length = 50)
     private String phone;
 
-    @Column(name = "avatar_url", length = 500)
+    @Column(name = "avatar_url", columnDefinition = "text")
     private String avatarUrl;
 
     @Column(name = "birth_date")

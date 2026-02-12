@@ -1,8 +1,5 @@
 package br.com.gopro.api.dtos;
 
-import jakarta.validation.constraints.Email;
-import jakarta.validation.constraints.NotBlank;
-
 import java.time.LocalDate;
 
 public record PeopleResponseDTO(
@@ -11,6 +8,7 @@ public record PeopleResponseDTO(
         String cpf,
         String email,
         String phone,
+        String avatarUrl,
         LocalDate birthDate,
         String address,
         String zipCode,

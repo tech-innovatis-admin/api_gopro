@@ -18,6 +18,7 @@ import br.com.gopro.api.dtos.ProjectTotalsDTO;
 import br.com.gopro.api.dtos.ProjectUpdateDTO;
 import br.com.gopro.api.enums.ProjectStatusEnum;
 import br.com.gopro.api.enums.ProjectTypeEnum;
+import br.com.gopro.api.enums.ProjectGovIfEnum;
 import br.com.gopro.api.service.ProjectAnalyticsService;
 import br.com.gopro.api.service.ProjectService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -73,6 +74,8 @@ public class ProjectController {
             @RequestParam(required = false) ProjectStatusEnum projectStatus,
             @Parameter(description = "Filtrar por tipo de contrato")
             @RequestParam(required = false) ProjectTypeEnum projectType,
+            @Parameter(description = "Filtrar por GOV ou IF")
+            @RequestParam(required = false) ProjectGovIfEnum projectGovIf,
             @Parameter(description = "Filtrar por mes de referencia (1-12)")
             @RequestParam(required = false) Integer month,
             @Parameter(description = "Filtrar por ano de referencia (ex: 2026)")
@@ -83,7 +86,7 @@ public class ProjectController {
             @RequestParam(required = false) Long partnerId
     ) {
         return ResponseEntity.ok(
-                projectService.getDashboard(projectStatus, projectType, month, year, location, partnerId)
+                projectService.getDashboard(projectStatus, projectType, projectGovIf, month, year, location, partnerId)
         );
     }
 

@@ -1,6 +1,7 @@
 package br.com.gopro.api.controller;
 
 import br.com.gopro.api.dtos.PageResponseDTO;
+import br.com.gopro.api.dtos.ProjectCompanyDetailedResponseDTO;
 import br.com.gopro.api.dtos.ProjectCompanyRequestDTO;
 import br.com.gopro.api.dtos.ProjectCompanyResponseDTO;
 import br.com.gopro.api.dtos.ProjectCompanyUpdateDTO;
@@ -41,9 +42,28 @@ public class ProjectCompanyController {
     @GetMapping
     public ResponseEntity<PageResponseDTO<ProjectCompanyResponseDTO>> list(
             @Parameter(description = "Numero da pagina") @RequestParam(defaultValue = "0") int page,
-            @Parameter(description = "Tamanho da pagina") @RequestParam(defaultValue = "10") int size
+            @Parameter(description = "Tamanho da pagina") @RequestParam(defaultValue = "10") int size,
+            @Parameter(description = "Filtrar por ID do projeto")
+            @RequestParam(name = "projectId", required = false) Long projectId
     ) {
+        if (projectId != null) {
+            return ResponseEntity.ok(projectCompanyService.listProjectCompaniesByProjectId(projectId, page, size));
+        }
         return ResponseEntity.ok(projectCompanyService.listAllProjectCompanies(page, size));
+    }
+
+    @Operation(summary = "Listar vinculos projeto-empresa (detalhado)")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Lista detalhada retornada com sucesso")
+    })
+    @GetMapping("/detailed")
+    public ResponseEntity<PageResponseDTO<ProjectCompanyDetailedResponseDTO>> listDetailed(
+            @Parameter(description = "Numero da pagina") @RequestParam(defaultValue = "0") int page,
+            @Parameter(description = "Tamanho da pagina") @RequestParam(defaultValue = "10") int size,
+            @Parameter(description = "Filtrar por ID do projeto")
+            @RequestParam(name = "projectId", required = false) Long projectId
+    ) {
+        return ResponseEntity.ok(projectCompanyService.listProjectCompaniesDetailed(projectId, page, size));
     }
 
     @Operation(summary = "Buscar vinculo por ID")

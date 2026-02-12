@@ -30,14 +30,28 @@ public class PeopleServiceImpl implements PeopleService {
         People people = peopleMapper.toEntity(dto);
 
         String cpfNormalizado = NormalizeUtils.normalizeCpf(dto.cpf());
+        String zipCodeNormalizado = normalizeRequiredZipCode(dto.zipCode());
+        String cityNormalizada = normalizeRequiredText(dto.city(), "Cidade e obrigatoria");
+        String stateNormalizado = normalizeRequiredText(dto.state(), "Estado e obrigatorio").toUpperCase();
 
         if (!NormalizeUtils.isValidCpf(cpfNormalizado)) {
             throw new BusinessException("CPF e invalido");
         }
+        if (dto.birthDate() == null) {
+            throw new BusinessException("Data de nascimento e obrigatoria");
+        }
 
+        people.setFullName(NormalizeUtils.normalizeOrNull(dto.fullName()));
         people.setCpf(cpfNormalizado);
+        people.setEmail(NormalizeUtils.normalizeOrNull(dto.email()));
         people.setPhone(NormalizeUtils.normalizePhone(dto.phone()));
-        people.setZipCode(NormalizeUtils.normalizeZipCode(dto.zipCode()));
+        people.setAvatarUrl(dto.avatarUrl());
+        people.setBirthDate(dto.birthDate());
+        people.setAddress(NormalizeUtils.normalizeOrNull(dto.address()));
+        people.setZipCode(zipCodeNormalizado);
+        people.setCity(cityNormalizada);
+        people.setState(stateNormalizado);
+        people.setNotes(NormalizeUtils.normalizeOrNull(dto.notes()));
         people.setIsActive(true);
 
         People peopleSave = peopleRepository.save(people);
@@ -93,21 +107,28 @@ public class PeopleServiceImpl implements PeopleService {
         }
 
         String cpfNormalizado = NormalizeUtils.normalizeCpf(dto.cpf());
+        String zipCodeNormalizado = normalizeRequiredZipCode(dto.zipCode());
+        String cityNormalizada = normalizeRequiredText(dto.city(), "Cidade e obrigatoria");
+        String stateNormalizado = normalizeRequiredText(dto.state(), "Estado e obrigatorio").toUpperCase();
 
         if (!NormalizeUtils.isValidCpf(cpfNormalizado)) {
             throw new BusinessException("CPF e invalido");
         }
+        if (dto.birthDate() == null) {
+            throw new BusinessException("Data de nascimento e obrigatoria");
+        }
 
-        people.setFullName(dto.fullName());
+        people.setFullName(NormalizeUtils.normalizeOrNull(dto.fullName()));
         people.setCpf(cpfNormalizado);
-        people.setEmail(dto.email());
+        people.setEmail(NormalizeUtils.normalizeOrNull(dto.email()));
         people.setPhone(NormalizeUtils.normalizePhone(dto.phone()));
+        people.setAvatarUrl(dto.avatarUrl());
         people.setBirthDate(dto.birthDate());
-        people.setAddress(dto.address());
-        people.setZipCode(NormalizeUtils.normalizeZipCode(dto.zipCode()));
-        people.setCity(dto.city());
-        people.setState(dto.state());
-        people.setNotes(dto.notes());
+        people.setAddress(NormalizeUtils.normalizeOrNull(dto.address()));
+        people.setZipCode(zipCodeNormalizado);
+        people.setCity(cityNormalizada);
+        people.setState(stateNormalizado);
+        people.setNotes(NormalizeUtils.normalizeOrNull(dto.notes()));
 
         People peopleUpdated = peopleRepository.save(people);
 
@@ -141,5 +162,21 @@ public class PeopleServiceImpl implements PeopleService {
         people.setIsActive(true);
         People restored = peopleRepository.save(people);
         return peopleMapper.toDTO(restored);
+    }
+
+    private String normalizeRequiredText(String value, String message) {
+        String normalized = NormalizeUtils.normalizeOrNull(value);
+        if (normalized == null) {
+            throw new BusinessException(message);
+        }
+        return normalized;
+    }
+
+    private String normalizeRequiredZipCode(String value) {
+        String normalized = NormalizeUtils.normalizeZipCode(value);
+        if (normalized == null || normalized.length() != 8) {
+            throw new BusinessException("CEP deve conter 8 digitos");
+        }
+        return normalized;
     }
 }

@@ -2,6 +2,7 @@ package br.com.gopro.api.dtos;
 
 import br.com.gopro.api.enums.ProjectStatusEnum;
 import br.com.gopro.api.enums.ProjectTypeEnum;
+import br.com.gopro.api.enums.ProjectGovIfEnum;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -19,6 +20,7 @@ public record ProjectDashboardResponseDTO(
     public record FilterDTO(
             ProjectStatusEnum projectStatus,
             ProjectTypeEnum projectType,
+            ProjectGovIfEnum projectGovIf,
             Integer month,
             Integer year,
             String location,

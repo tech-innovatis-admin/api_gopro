@@ -6,6 +6,7 @@ import br.com.gopro.api.dtos.ProjectRequestDTO;
 import br.com.gopro.api.dtos.ProjectResponseDTO;
 import br.com.gopro.api.dtos.ProjectTotalsDTO;
 import br.com.gopro.api.dtos.ProjectUpdateDTO;
+import br.com.gopro.api.enums.ProjectGovIfEnum;
 import br.com.gopro.api.enums.ProjectStatusEnum;
 import br.com.gopro.api.enums.ProjectTypeEnum;
 import br.com.gopro.api.exception.BusinessException;
@@ -168,6 +169,7 @@ public class ProjectServiceImpl implements ProjectService {
     public ProjectDashboardResponseDTO getDashboard(
             ProjectStatusEnum projectStatus,
             ProjectTypeEnum projectType,
+            ProjectGovIfEnum projectGovIf,
             Integer month,
             Integer year,
             String location,
@@ -188,6 +190,7 @@ public class ProjectServiceImpl implements ProjectService {
         List<Project> filteredProjects = activeProjects.stream()
                 .filter(project -> projectStatus == null || projectStatus == project.getProjectStatus())
                 .filter(project -> projectType == null || projectType == project.getProjectType())
+                .filter(project -> projectGovIf == null || projectGovIf == project.getProjectGovIf())
                 .filter(project -> month == null || monthMatches(project, month))
                 .filter(project -> year == null || yearMatches(project, year))
                 .filter(project -> partnerId == null || partnerMatches(project, partnerId))
@@ -281,6 +284,7 @@ public class ProjectServiceImpl implements ProjectService {
                 new ProjectDashboardResponseDTO.FilterDTO(
                         projectStatus,
                         projectType,
+                        projectGovIf,
                         month,
                         year,
                         trimToNull(location),

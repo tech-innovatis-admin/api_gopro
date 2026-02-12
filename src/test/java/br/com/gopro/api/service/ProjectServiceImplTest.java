@@ -86,6 +86,7 @@ class ProjectServiceImplTest {
         ProjectDashboardResponseDTO result = service.getDashboard(
                 ProjectStatusEnum.EXECUCAO,
                 null,
+                null,
                 1,
                 null,
                 null,
@@ -159,6 +160,7 @@ class ProjectServiceImplTest {
                 null,
                 null,
                 null,
+                null,
                 "teresina",
                 1L
         );
@@ -171,7 +173,7 @@ class ProjectServiceImplTest {
 
     @Test
     void getDashboard_shouldThrowBusinessException_whenMonthOutOfRange() {
-        assertThatThrownBy(() -> service.getDashboard(null, null, 13, null, null, null))
+        assertThatThrownBy(() -> service.getDashboard(null, null, null, 13, null, null, null))
                 .isInstanceOf(BusinessException.class)
                 .hasMessageContaining("Mes deve estar entre 1 e 12");
     }

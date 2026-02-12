@@ -1,6 +1,7 @@
 package br.com.gopro.api.service;
 
 import br.com.gopro.api.dtos.PageResponseDTO;
+import br.com.gopro.api.dtos.ProjectPeopleDetailedResponseDTO;
 import br.com.gopro.api.dtos.ProjectPeopleRequestDTO;
 import br.com.gopro.api.dtos.ProjectPeopleResponseDTO;
 import br.com.gopro.api.dtos.ProjectPeopleUpdateDTO;
@@ -37,12 +38,31 @@ public class ProjectPeopleServiceImpl implements ProjectPeopleService {
         validatePage(page, size);
         Pageable pageable = PageRequest.of(page, size);
         Page<ProjectPeople> pageResult = projectPeopleRepository.findByIsActiveTrue(pageable);
-        List<ProjectPeopleResponseDTO> content = pageResult.getContent().stream()
-                .map(projectPeopleMapper::toDTO)
-                .toList();
+        return toPageResponse(pageResult);
+    }
+
+    @Override
+    public PageResponseDTO<ProjectPeopleResponseDTO> listProjectPeopleByProjectId(Long projectId, int page, int size) {
+        validatePage(page, size);
+        validateProjectId(projectId);
+        Pageable pageable = PageRequest.of(page, size);
+        Page<ProjectPeople> pageResult = projectPeopleRepository.findByProject_IdAndIsActiveTrue(projectId, pageable);
+        return toPageResponse(pageResult);
+    }
+
+    @Override
+    public PageResponseDTO<ProjectPeopleDetailedResponseDTO> listProjectPeopleDetailed(Long projectId, int page, int size) {
+        validatePage(page, size);
+        if (projectId != null) {
+            validateProjectId(projectId);
+        }
+
+        Pageable pageable = PageRequest.of(page, size);
+        Page<ProjectPeopleDetailedResponseDTO> pageResult =
+                projectPeopleRepository.findDetailedByProjectId(projectId, pageable);
 
         return new PageResponseDTO<>(
-                content,
+                pageResult.getContent(),
                 pageResult.getNumber(),
                 pageResult.getSize(),
                 pageResult.getTotalElements(),
@@ -104,5 +124,27 @@ public class ProjectPeopleServiceImpl implements ProjectPeopleService {
         if (size <= 0 || size > 100) {
             throw new BusinessException("Tamanho da pagina deve estar entre 1 e 100");
         }
+    }
+
+    private void validateProjectId(Long projectId) {
+        if (projectId == null || projectId <= 0) {
+            throw new BusinessException("ProjectId invalido");
+        }
+    }
+
+    private PageResponseDTO<ProjectPeopleResponseDTO> toPageResponse(Page<ProjectPeople> pageResult) {
+        List<ProjectPeopleResponseDTO> content = pageResult.getContent().stream()
+                .map(projectPeopleMapper::toDTO)
+                .toList();
+
+        return new PageResponseDTO<>(
+                content,
+                pageResult.getNumber(),
+                pageResult.getSize(),
+                pageResult.getTotalElements(),
+                pageResult.getTotalPages(),
+                pageResult.isFirst(),
+                pageResult.isLast()
+        );
     }
 }
