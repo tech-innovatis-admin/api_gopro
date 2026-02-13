@@ -32,6 +32,7 @@ public class PartnerServiceImpl implements PartnerService {
         partner.setCnpj(NormalizeUtils.normalizeCnpj(dto.cnpj()));
         partner.setPhone(NormalizeUtils.normalizePhone(dto.phone()));
         partner.setIsActive(true);
+        partner.setCreatedBy(dto.createdBy());
 
         Partner partnerCreated = partnerRepository.save(partner);
 

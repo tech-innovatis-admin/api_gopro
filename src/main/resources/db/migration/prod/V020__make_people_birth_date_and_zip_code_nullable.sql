@@ -1,0 +1,3 @@
+ALTER TABLE IF EXISTS peoples
+    ALTER COLUMN birth_date DROP NOT NULL,
+    ALTER COLUMN zip_code DROP NOT NULL;

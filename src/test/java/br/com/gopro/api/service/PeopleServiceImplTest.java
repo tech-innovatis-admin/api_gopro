@@ -69,7 +69,6 @@ class PeopleServiceImplTest {
 
         assertThat(saved.getCpf()).isEqualTo("52998224725");
         assertThat(saved.getPhone()).isEqualTo("11988887777");
-        assertThat(saved.getZipCode()).isEqualTo("01310200");
         assertThat(saved.getIsActive()).isTrue();
     }
 
@@ -172,7 +171,6 @@ class PeopleServiceImplTest {
         assertThat(result).isEqualTo(responseDTO);
         assertThat(people.getCpf()).isEqualTo("52998224725");
         assertThat(people.getPhone()).isEqualTo("11988887777");
-        assertThat(people.getZipCode()).isEqualTo("01310200");
         assertThat(people.getFullName()).isEqualTo("Ana Silva");
         verify(peopleRepository).save(people);
     }
@@ -257,7 +255,6 @@ class PeopleServiceImplTest {
                 "https://bucket.s3.amazonaws.com/avatars/ana.png",
                 LocalDate.of(1990, 1, 1),
                 "Rua A, 10",
-                "01310-200",
                 "Sao Paulo",
                 "SP",
                 "Observacao"
@@ -274,7 +271,6 @@ class PeopleServiceImplTest {
                 "https://bucket.s3.amazonaws.com/avatars/ana.png",
                 LocalDate.of(1990, 1, 1),
                 "Rua A, 10",
-                "01310200",
                 "Sao Paulo",
                 "SP",
                 "Observacao",

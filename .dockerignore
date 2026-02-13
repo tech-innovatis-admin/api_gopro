@@ -2,16 +2,27 @@
 .github
 .idea
 .vscode
+*.iml
 
 target
 out
 build
+src/test
 
 *.log
 tmp_boot_*.log
+tmp_*.log
+hs_err_pid*
+replay_pid*
+storage/
 
 .env
 .env.*
+.envrc
+*.local
+*.tmp
+**/.DS_Store
+!.env.example
 
 README.md
 docker-compose*.yml

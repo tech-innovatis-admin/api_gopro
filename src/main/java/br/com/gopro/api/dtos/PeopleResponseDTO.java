@@ -11,7 +11,6 @@ public record PeopleResponseDTO(
         String avatarUrl,
         LocalDate birthDate,
         String address,
-        String zipCode,
         String city,
         String state,
         String notes,

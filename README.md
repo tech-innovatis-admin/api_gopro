@@ -3,7 +3,7 @@
 Backend Spring Boot da plataforma GoPro.
 
 ## Requisitos
-- Java 21+
+- Java 17+
 - Maven (ou `./mvnw`)
 - PostgreSQL
 
@@ -25,6 +25,20 @@ Arquivos:
 - `src/main/resources/application.properties`
 - `src/main/resources/application-dev.properties`
 - `src/main/resources/application-prod.properties`
+
+## Flyway por ambiente
+- `core` (schema/evolucao): `src/main/resources/db/migration/core`
+- `dev` (seed de desenvolvimento): `src/main/resources/db/migration/dev`
+- `prod` (bootstrap limpo para primeira subida): `src/main/resources/db/migration/prod`
+
+Comportamento:
+- `dev`: aplica `core` + `dev`
+- `prod`: aplica apenas `prod`
+
+Configuracoes:
+- `application.properties`: `spring.flyway.locations=classpath:db/migration/core`
+- `application-dev.properties`: `spring.flyway.locations=classpath:db/migration/core,classpath:db/migration/dev`
+- `application-prod.properties`: `spring.flyway.locations=classpath:db/migration/prod`
 
 ## OpenAPI / Swagger
 - UI: `http://localhost:8080/swagger-ui/index.html`

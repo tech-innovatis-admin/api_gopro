@@ -1,0 +1,2 @@
+ALTER TABLE IF EXISTS peoples
+    DROP COLUMN IF EXISTS zip_code;

@@ -1,5 +1,6 @@
 package br.com.gopro.api.exception;
 
+import org.apache.catalina.connector.ClientAbortException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
@@ -78,9 +79,39 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleUnexpected(Exception exception, HttpServletRequest request) {
+        if (isClientAbort(exception)) {
+            log.debug(
+                    "client_abort path={} method={} message={}",
+                    request.getRequestURI(),
+                    request.getMethod(),
+                    exception.getMessage()
+            );
+            return ResponseEntity.noContent().build();
+        }
+
         log.error("unexpected_error path={} method={} message={}", request.getRequestURI(), request.getMethod(), exception.getMessage(), exception);
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(buildError(HttpStatus.INTERNAL_SERVER_ERROR, "Erro interno do servidor", request, null));
+    }
+
+    private boolean isClientAbort(Throwable throwable) {
+        if (throwable == null) {
+            return false;
+        }
+
+        if (throwable instanceof ClientAbortException) {
+            return true;
+        }
+
+        String message = throwable.getMessage();
+        if (message != null) {
+            String normalized = message.toLowerCase();
+            if (normalized.contains("broken pipe") || normalized.contains("connection reset by peer")) {
+                return true;
+            }
+        }
+
+        return isClientAbort(throwable.getCause());
     }
 
     private ErrorResponse buildError(

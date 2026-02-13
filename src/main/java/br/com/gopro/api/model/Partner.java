@@ -66,7 +66,7 @@ public class Partner {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
-    @Column(name = "created_by", nullable = false)
+    @Column(name = "created_by")
     private Long createdBy;
 
     @Column(name = "updated_by")

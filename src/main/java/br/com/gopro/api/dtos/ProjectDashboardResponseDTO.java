@@ -68,6 +68,7 @@ public record ProjectDashboardResponseDTO(
 
     public record PartnerMetricDTO(
             Long partnerId,
+            String partnerAcronym,
             String partnerName,
             long contracts,
             BigDecimal totalValue

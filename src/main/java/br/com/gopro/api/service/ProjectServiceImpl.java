@@ -7,17 +7,21 @@ import br.com.gopro.api.dtos.ProjectResponseDTO;
 import br.com.gopro.api.dtos.ProjectTotalsDTO;
 import br.com.gopro.api.dtos.ProjectUpdateDTO;
 import br.com.gopro.api.enums.ProjectGovIfEnum;
+import br.com.gopro.api.enums.RoleProjectPeopleEnum;
 import br.com.gopro.api.enums.ProjectStatusEnum;
+import br.com.gopro.api.enums.StatusProjectPeopleEnum;
 import br.com.gopro.api.enums.ProjectTypeEnum;
 import br.com.gopro.api.exception.BusinessException;
 import br.com.gopro.api.exception.ResourceNotFoundException;
 import br.com.gopro.api.mapper.ProjectMapper;
 import br.com.gopro.api.model.Partner;
 import br.com.gopro.api.model.Project;
+import br.com.gopro.api.model.ProjectPeople;
 import br.com.gopro.api.repository.ExpenseRepository;
 import br.com.gopro.api.repository.IncomeRepository;
 import br.com.gopro.api.repository.PartnerRepository;
 import br.com.gopro.api.repository.PeopleRepository;
+import br.com.gopro.api.repository.ProjectPeopleRepository;
 import br.com.gopro.api.repository.ProjectRepository;
 import br.com.gopro.api.repository.PublicAgencyRepository;
 import br.com.gopro.api.repository.SecretaryRepository;
@@ -27,6 +31,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -55,11 +60,13 @@ public class ProjectServiceImpl implements ProjectService {
     private final PublicAgencyRepository publicAgencyRepository;
     private final SecretaryRepository secretaryRepository;
     private final PeopleRepository peopleRepository;
+    private final ProjectPeopleRepository projectPeopleRepository;
     private static final Locale PT_BR = new Locale("pt", "BR");
     @Value("${app.project.max-contract-value:9999999999999.99}")
     private BigDecimal maxContractValue;
 
     @Override
+    @Transactional
     public ProjectResponseDTO createProject(ProjectRequestDTO dto) {
         validateContractValue(dto.contractValue());
         validateReferencesForCreate(dto);
@@ -76,6 +83,7 @@ public class ProjectServiceImpl implements ProjectService {
             project.setSaldo(BigDecimal.ZERO);
         }
         Project saved = projectRepository.save(project);
+        ensureCoordinatorLinkedToProjectPeople(saved, dto.createdBy(), null);
         return projectMapper.toDTO(saved);
     }
 
@@ -110,6 +118,7 @@ public class ProjectServiceImpl implements ProjectService {
     }
 
     @Override
+    @Transactional
     public ProjectResponseDTO updateProjectById(Long id, ProjectUpdateDTO dto) {
         Project project = projectRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Projeto nao encontrado"));
@@ -124,6 +133,7 @@ public class ProjectServiceImpl implements ProjectService {
 
         projectMapper.updateEntityFromDTO(dto, project);
         Project updated = projectRepository.save(project);
+        ensureCoordinatorLinkedToProjectPeople(updated, dto.updatedBy(), project.getCreatedBy());
         return projectMapper.toDTO(updated);
     }
 
@@ -270,6 +280,7 @@ public class ProjectServiceImpl implements ProjectService {
                 .stream()
                 .map(entry -> new ProjectDashboardResponseDTO.PartnerMetricDTO(
                         entry.getKey().partnerId(),
+                        entry.getKey().partnerAcronym(),
                         entry.getKey().partnerName(),
                         entry.getValue().size(),
                         sumContractValue(entry.getValue())
@@ -440,10 +451,11 @@ public class ProjectServiceImpl implements ProjectService {
     private PartnerKey toPrimaryPartnerKey(Project project) {
         Partner partner = project.getPrimaryPartner();
         if (partner == null) {
-            return new PartnerKey(null, "Nao informado");
+            return new PartnerKey(null, null, "Nao informado");
         }
+        String acronym = trimToNull(partner.getAcronym());
         String name = trimToNull(partner.getName());
-        return new PartnerKey(partner.getId(), name != null ? name : "Nao informado");
+        return new PartnerKey(partner.getId(), acronym, name != null ? name : "Nao informado");
     }
 
     private String normalize(String value) {
@@ -467,7 +479,7 @@ public class ProjectServiceImpl implements ProjectService {
         return value == null ? "" : value;
     }
 
-    private record PartnerKey(Long partnerId, String partnerName) {
+    private record PartnerKey(Long partnerId, String partnerAcronym, String partnerName) {
     }
 
     private record LocationKey(String location, String city, String state) {
@@ -546,5 +558,54 @@ public class ProjectServiceImpl implements ProjectService {
         if (!Boolean.TRUE.equals(people.getIsActive())) {
             throw new BusinessException(label + " inativo");
         }
+    }
+
+    private void ensureCoordinatorLinkedToProjectPeople(Project project, Long actorId, Long fallbackCreatedBy) {
+        if (project.getId() == null || project.getCordinator() == null || project.getCordinator().getId() == null) {
+            return;
+        }
+
+        Long projectId = project.getId();
+        Long personId = project.getCordinator().getId();
+
+        if (projectPeopleRepository.existsByProject_IdAndPerson_IdAndIsActiveTrue(projectId, personId)) {
+            return;
+        }
+
+        ProjectPeople projectPeople = projectPeopleRepository
+                .findFirstByProject_IdAndPerson_Id(projectId, personId)
+                .orElseGet(ProjectPeople::new);
+
+        projectPeople.setProject(project);
+        projectPeople.setPerson(project.getCordinator());
+        projectPeople.setRole(RoleProjectPeopleEnum.DIRETOR);
+        projectPeople.setStatus(StatusProjectPeopleEnum.ATIVO);
+        projectPeople.setStartDate(firstNonNullDate(project.getStartDate(), project.getOpeningDate()));
+        projectPeople.setIsActive(true);
+
+        Long auditUserId = resolveAuditUserId(actorId, fallbackCreatedBy);
+        if (projectPeople.getCreatedBy() == null) {
+            projectPeople.setCreatedBy(auditUserId);
+        }
+        projectPeople.setUpdatedBy(auditUserId);
+
+        projectPeopleRepository.save(projectPeople);
+    }
+
+    private Long resolveAuditUserId(Long preferredUserId, Long fallbackUserId) {
+        if (preferredUserId != null) {
+            return preferredUserId;
+        }
+        if (fallbackUserId != null) {
+            return fallbackUserId;
+        }
+        return null;
+    }
+
+    private LocalDate firstNonNullDate(LocalDate first, LocalDate second) {
+        if (first != null) {
+            return first;
+        }
+        return second;
     }
 }

@@ -33,9 +33,7 @@ public record ProjectPeopleDetailedResponseDTO(
         String personAvatarUrl,
         LocalDate personBirthDate,
         String personAddress,
-        String personZipCode,
         String personCity,
         String personState
 ) {
 }
-
