@@ -6,6 +6,7 @@ import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.validation.BindException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -77,6 +78,18 @@ public class GlobalExceptionHandler {
                 .body(buildError(HttpStatus.BAD_REQUEST, "Erro de validacao nos filtros", request, fieldErrors));
     }
 
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<ErrorResponse> handleDataIntegrityViolation(
+            DataIntegrityViolationException exception,
+            HttpServletRequest request
+    ) {
+        HttpStatus status = HttpStatus.CONFLICT;
+        String message = mapDataIntegrityMessage(exception);
+
+        return ResponseEntity.status(status)
+                .body(buildError(status, message, request, null));
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleUnexpected(Exception exception, HttpServletRequest request) {
         if (isClientAbort(exception)) {
@@ -128,5 +141,26 @@ public class GlobalExceptionHandler {
                 request.getRequestURI(),
                 fieldErrors
         );
+    }
+
+    private String mapDataIntegrityMessage(DataIntegrityViolationException exception) {
+        String details = "";
+        if (exception.getMostSpecificCause() != null && exception.getMostSpecificCause().getMessage() != null) {
+            details = exception.getMostSpecificCause().getMessage().toLowerCase();
+        } else if (exception.getMessage() != null) {
+            details = exception.getMessage().toLowerCase();
+        }
+
+        if (details.contains("uq_project_people_active_project_person")) {
+            return "Pessoa ja esta vinculada a este projeto";
+        }
+        if (details.contains("fk_project_people_person_id")) {
+            return "Pessoa informada nao encontrada";
+        }
+        if (details.contains("fk_project_people_project_id")) {
+            return "Projeto informado nao encontrado";
+        }
+
+        return "Violacao de integridade de dados";
     }
 }
