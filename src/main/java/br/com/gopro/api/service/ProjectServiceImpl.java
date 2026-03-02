@@ -38,6 +38,7 @@ import java.math.RoundingMode;
 import java.text.Normalizer;
 import java.time.LocalDate;
 import java.time.Month;
+import java.time.temporal.ChronoUnit;
 import java.time.format.TextStyle;
 import java.util.Arrays;
 import java.util.Comparator;
@@ -291,6 +292,8 @@ public class ProjectServiceImpl implements ProjectService {
                         .thenComparing(ProjectDashboardResponseDTO.PartnerMetricDTO::partnerName, Comparator.nullsLast(String::compareToIgnoreCase)))
                 .toList();
 
+        ProjectDashboardResponseDTO.ExpiringContractsDTO expiringContracts = buildExpiringContracts(filteredProjects);
+
         return new ProjectDashboardResponseDTO(
                 new ProjectDashboardResponseDTO.FilterDTO(
                         projectStatus,
@@ -310,7 +313,8 @@ public class ProjectServiceImpl implements ProjectService {
                 byType,
                 byMonth,
                 byLocation,
-                byPartner
+                byPartner,
+                expiringContracts
         );
     }
 
@@ -477,6 +481,77 @@ public class ProjectServiceImpl implements ProjectService {
 
     private String valueOrEmpty(String value) {
         return value == null ? "" : value;
+    }
+
+    private ProjectDashboardResponseDTO.ExpiringContractsDTO buildExpiringContracts(List<Project> projects) {
+        LocalDate referenceDate = LocalDate.now();
+        LocalDate oneMonthLimit = referenceDate.plusMonths(1);
+        LocalDate threeMonthLimit = referenceDate.plusMonths(3);
+        LocalDate sixMonthLimit = referenceDate.plusMonths(6);
+        LocalDate oneYearLimit = referenceDate.plusYears(1);
+
+        List<Project> upcomingProjects = projects.stream()
+                .filter(project -> project.getEndDate() != null)
+                .filter(project -> isWithinDateRange(project.getEndDate(), referenceDate, oneYearLimit))
+                .sorted(Comparator
+                        .comparing(Project::getEndDate)
+                        .thenComparing(Project::getId, Comparator.nullsLast(Long::compareTo)))
+                .toList();
+
+        long upToOneMonth = upcomingProjects.stream()
+                .filter(project -> !project.getEndDate().isAfter(oneMonthLimit))
+                .count();
+
+        long upToThreeMonths = upcomingProjects.stream()
+                .filter(project -> project.getEndDate().isAfter(oneMonthLimit))
+                .filter(project -> !project.getEndDate().isAfter(threeMonthLimit))
+                .count();
+
+        long upToSixMonths = upcomingProjects.stream()
+                .filter(project -> project.getEndDate().isAfter(threeMonthLimit))
+                .filter(project -> !project.getEndDate().isAfter(sixMonthLimit))
+                .count();
+
+        long upToOneYear = upcomingProjects.stream()
+                .filter(project -> project.getEndDate().isAfter(sixMonthLimit))
+                .filter(project -> !project.getEndDate().isAfter(oneYearLimit))
+                .count();
+
+        List<ProjectDashboardResponseDTO.ExpiringContractDTO> contracts = upcomingProjects.stream()
+                .map(project -> new ProjectDashboardResponseDTO.ExpiringContractDTO(
+                        project.getId(),
+                        project.getName(),
+                        project.getCode(),
+                        resolvePrimaryClientName(project),
+                        project.getEndDate(),
+                        ChronoUnit.DAYS.between(referenceDate, project.getEndDate()),
+                        project.getProjectStatus(),
+                        project.getContractValue()
+                ))
+                .toList();
+
+        return new ProjectDashboardResponseDTO.ExpiringContractsDTO(
+                referenceDate,
+                upToOneMonth,
+                upToThreeMonths,
+                upToSixMonths,
+                upToOneYear,
+                contracts
+        );
+    }
+
+    private boolean isWithinDateRange(LocalDate value, LocalDate startInclusive, LocalDate endInclusive) {
+        return value != null
+                && !value.isBefore(startInclusive)
+                && !value.isAfter(endInclusive);
+    }
+
+    private String resolvePrimaryClientName(Project project) {
+        if (project == null || project.getPrimaryClient() == null) {
+            return "Nao informado";
+        }
+        String name = trimToNull(project.getPrimaryClient().getName());
+        return name != null ? name : "Nao informado";
     }
 
     private record PartnerKey(Long partnerId, String partnerAcronym, String partnerName) {
