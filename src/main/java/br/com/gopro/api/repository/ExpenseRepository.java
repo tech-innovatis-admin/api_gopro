@@ -9,12 +9,16 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.math.BigDecimal;
+import java.util.Optional;
 
 @Repository
 public interface ExpenseRepository extends JpaRepository<Expense, Long> {
     Page<Expense> findAll(Pageable pageable);
     Page<Expense> findByIsActiveTrue(Pageable pageable);
     Page<Expense> findByIsActiveTrueAndIncome_IsActiveTrueAndIncome_Project_Id(Long projectId, Pageable pageable);
+
+    @Query("select e.income.project.id from Expense e where e.id = :id")
+    Optional<Long> findProjectIdById(@Param("id") Long id);
 
     @Query("""
     select coalesce(sum(e.amount), 0)

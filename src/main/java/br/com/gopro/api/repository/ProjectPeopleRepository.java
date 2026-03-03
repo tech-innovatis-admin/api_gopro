@@ -18,6 +18,9 @@ public interface ProjectPeopleRepository extends JpaRepository<ProjectPeople, Lo
     boolean existsByProject_IdAndPerson_IdAndIsActiveTrue(Long projectId, Long personId);
     Optional<ProjectPeople> findFirstByProject_IdAndPerson_Id(Long projectId, Long personId);
 
+    @Query("select pp.project.id from ProjectPeople pp where pp.id = :id")
+    Optional<Long> findProjectIdById(@Param("id") Long id);
+
     @Query(
             value = """
                     select new br.com.gopro.api.dtos.ProjectPeopleDetailedResponseDTO(
