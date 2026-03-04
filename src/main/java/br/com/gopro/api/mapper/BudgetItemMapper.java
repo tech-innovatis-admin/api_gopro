@@ -3,32 +3,84 @@ package br.com.gopro.api.mapper;
 import br.com.gopro.api.dtos.BudgetItemRequestDTO;
 import br.com.gopro.api.dtos.BudgetItemResponseDTO;
 import br.com.gopro.api.dtos.BudgetItemUpdateDTO;
+import br.com.gopro.api.model.BudgetCategory;
 import br.com.gopro.api.model.BudgetItem;
-import org.mapstruct.Mapper;
-import org.mapstruct.Mapping;
-import org.mapstruct.MappingTarget;
-import org.mapstruct.NullValuePropertyMappingStrategy;
+import org.springframework.stereotype.Component;
 
-@Mapper(componentModel = "spring", nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
-public interface BudgetItemMapper {
+@Component
+public class BudgetItemMapper {
 
-    @Mapping(target = "id", ignore = true)
-    @Mapping(target = "createdAt", ignore = true)
-    @Mapping(target = "updatedAt", ignore = true)
-    @Mapping(target = "updatedBy", ignore = true)
-    @Mapping(target = "category.id", source = "categoryId")
-    @Mapping(target = "goal.id", source = "goalId")
-    BudgetItem toEntity(BudgetItemRequestDTO dto);
+    public BudgetItem toEntity(BudgetItemRequestDTO dto) {
+        BudgetItem budgetItem = new BudgetItem();
+        budgetItem.setCategory(toCategoryReference(dto.categoryId()));
+        budgetItem.setDescription(dto.description());
+        budgetItem.setQuantity(dto.quantity());
+        budgetItem.setMonths(dto.months());
+        budgetItem.setUnitCost(dto.unitCost());
+        budgetItem.setPlannedAmount(dto.plannedAmount());
+        budgetItem.setExecutedAmount(dto.executedAmount());
+        budgetItem.setNotes(dto.notes());
+        budgetItem.setCreatedBy(dto.createdBy());
+        return budgetItem;
+    }
 
-    @Mapping(target = "categoryId", source = "category.id")
-    @Mapping(target = "goalId", source = "goal.id")
-    BudgetItemResponseDTO toDTO(BudgetItem budgetItem);
+    public BudgetItemResponseDTO toDTO(BudgetItem budgetItem) {
+        return new BudgetItemResponseDTO(
+                budgetItem.getId(),
+                budgetItem.getCategory() != null ? budgetItem.getCategory().getId() : null,
+                budgetItem.getDescription(),
+                budgetItem.getQuantity(),
+                budgetItem.getMonths(),
+                budgetItem.getUnitCost(),
+                budgetItem.getPlannedAmount(),
+                budgetItem.getExecutedAmount(),
+                budgetItem.getGoal() != null ? budgetItem.getGoal().getId() : null,
+                budgetItem.getNotes(),
+                budgetItem.getIsActive(),
+                budgetItem.getCreatedAt(),
+                budgetItem.getUpdatedAt(),
+                budgetItem.getCreatedBy(),
+                budgetItem.getUpdatedBy()
+        );
+    }
 
-    @Mapping(target = "id", ignore = true)
-    @Mapping(target = "createdAt", ignore = true)
-    @Mapping(target = "updatedAt", ignore = true)
-    @Mapping(target = "createdBy", ignore = true)
-    @Mapping(target = "category.id", source = "categoryId")
-    @Mapping(target = "goal.id", source = "goalId")
-    void updateEntityFromDTO(BudgetItemUpdateDTO dto, @MappingTarget BudgetItem budgetItem);
+    public void updateEntityFromDTO(BudgetItemUpdateDTO dto, BudgetItem budgetItem) {
+        if (dto.categoryId() != null) {
+            budgetItem.setCategory(toCategoryReference(dto.categoryId()));
+        }
+        if (dto.description() != null) {
+            budgetItem.setDescription(dto.description());
+        }
+        if (dto.quantity() != null) {
+            budgetItem.setQuantity(dto.quantity());
+        }
+        if (dto.months() != null) {
+            budgetItem.setMonths(dto.months());
+        }
+        if (dto.unitCost() != null) {
+            budgetItem.setUnitCost(dto.unitCost());
+        }
+        if (dto.plannedAmount() != null) {
+            budgetItem.setPlannedAmount(dto.plannedAmount());
+        }
+        if (dto.executedAmount() != null) {
+            budgetItem.setExecutedAmount(dto.executedAmount());
+        }
+        if (dto.notes() != null) {
+            budgetItem.setNotes(dto.notes());
+        }
+        if (dto.updatedBy() != null) {
+            budgetItem.setUpdatedBy(dto.updatedBy());
+        }
+    }
+
+    private BudgetCategory toCategoryReference(Long categoryId) {
+        if (categoryId == null) {
+            return null;
+        }
+
+        BudgetCategory category = new BudgetCategory();
+        category.setId(categoryId);
+        return category;
+    }
 }

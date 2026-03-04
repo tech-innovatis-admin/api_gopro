@@ -9,6 +9,7 @@ import br.com.gopro.api.exception.ResourceNotFoundException;
 import br.com.gopro.api.mapper.BudgetItemMapper;
 import br.com.gopro.api.model.BudgetItem;
 import br.com.gopro.api.repository.BudgetItemRepository;
+import br.com.gopro.api.repository.GoalRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -24,10 +25,12 @@ public class BudgetItemServiceImpl implements BudgetItemService {
 
     private final BudgetItemRepository budgetItemRepository;
     private final BudgetItemMapper budgetItemMapper;
+    private final GoalRepository goalRepository;
 
     @Override
     public BudgetItemResponseDTO createBudgetItem(BudgetItemRequestDTO dto) {
         BudgetItem budgetItem = budgetItemMapper.toEntity(dto);
+        applyGoalReferenceOnCreate(budgetItem, dto.goalId());
         budgetItem.setIsActive(true);
         applyDefaults(budgetItem);
         BudgetItem saved = budgetItemRepository.save(budgetItem);
@@ -79,6 +82,7 @@ public class BudgetItemServiceImpl implements BudgetItemService {
             throw new BusinessException("Nao e possivel atualizar um item inativo");
         }
         budgetItemMapper.updateEntityFromDTO(dto, budgetItem);
+        applyGoalReferenceOnUpdate(budgetItem, dto.goalId());
         applyDefaults(budgetItem);
         BudgetItem updated = budgetItemRepository.save(budgetItem);
         return budgetItemMapper.toDTO(updated);
@@ -119,6 +123,26 @@ public class BudgetItemServiceImpl implements BudgetItemService {
     private void applyDefaults(BudgetItem budgetItem) {
         if (budgetItem.getExecutedAmount() == null) {
             budgetItem.setExecutedAmount(BigDecimal.ZERO);
+        }
+    }
+
+    private void applyGoalReferenceOnCreate(BudgetItem budgetItem, Long goalId) {
+        if (goalId == null) {
+            budgetItem.setGoal(null);
+            return;
+        }
+
+        budgetItem.setGoal(goalRepository.getReferenceById(goalId));
+    }
+
+    private void applyGoalReferenceOnUpdate(BudgetItem budgetItem, Long goalId) {
+        if (goalId != null) {
+            budgetItem.setGoal(goalRepository.getReferenceById(goalId));
+            return;
+        }
+
+        if (budgetItem.getGoal() != null && budgetItem.getGoal().getId() == null) {
+            budgetItem.setGoal(null);
         }
     }
 }

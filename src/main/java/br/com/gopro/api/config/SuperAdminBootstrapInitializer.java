@@ -4,8 +4,10 @@ import br.com.gopro.api.enums.UserRoleEnum;
 import br.com.gopro.api.enums.UserStatusEnum;
 import br.com.gopro.api.model.AppUser;
 import br.com.gopro.api.repository.AppUserRepository;
-import br.com.gopro.api.service.AuditActions;
 import br.com.gopro.api.service.AuditLogService;
+import br.com.gopro.api.enums.AuditResultEnum;
+import br.com.gopro.api.enums.AuditScopeEnum;
+import br.com.gopro.api.service.audit.AuditEventRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -84,12 +86,19 @@ public class SuperAdminBootstrapInitializer implements ApplicationRunner {
         log.warn("superadmin bootstrap executado para email={}", saved.getEmail());
 
         auditLogService.log(
-                saved.getId(),
-                AuditActions.SUPERADMIN_BOOTSTRAPPED,
-                "users",
-                String.valueOf(saved.getId()),
-                null,
-                Map.of("email", saved.getEmail(), "created", created),
+                AuditEventRequest.builder()
+                        .actorUserId(saved.getId())
+                        .tipoAuditoria(AuditScopeEnum.USERS)
+                        .modulo("Usuarios")
+                        .feature("Bootstrap de superadmin")
+                        .entidadePrincipal("Usuario")
+                        .entidadeId(String.valueOf(saved.getId()))
+                        .acao("CRIAR")
+                        .resultado(AuditResultEnum.SUCESSO)
+                        .resumo("Superadmin inicial provisionado")
+                        .descricao("Conta superadmin criada ou atualizada via bootstrap de ambiente.")
+                        .depois(Map.of("email", saved.getEmail(), "created", created))
+                        .build(),
                 null
         );
     }

@@ -34,11 +34,12 @@ public class AdminAuditController {
             @RequestParam(required = false) AuditScopeEnum scope,
             @RequestParam(required = false) Long actorUserId,
             @RequestParam(required = false) String actorName,
+            @RequestParam(required = false) String search,
             @RequestParam(required = false) Long contractId,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime from,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime to,
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int size
+            @RequestParam(defaultValue = "10") int size
     ) {
         return ResponseEntity.ok(
                 auditLogService.list(
@@ -47,6 +48,7 @@ public class AdminAuditController {
                         scope,
                         actorUserId,
                         actorName,
+                        search,
                         contractId,
                         from,
                         to,

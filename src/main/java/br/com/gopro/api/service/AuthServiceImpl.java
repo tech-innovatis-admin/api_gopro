@@ -5,11 +5,14 @@ import br.com.gopro.api.config.JwtService;
 import br.com.gopro.api.dtos.AuthLoginRequestDTO;
 import br.com.gopro.api.dtos.AuthLoginResponseDTO;
 import br.com.gopro.api.dtos.AuthUserResponseDTO;
+import br.com.gopro.api.enums.AuditResultEnum;
+import br.com.gopro.api.enums.AuditScopeEnum;
 import br.com.gopro.api.enums.UserStatusEnum;
 import br.com.gopro.api.exception.ResourceNotFoundException;
 import br.com.gopro.api.exception.UnauthorizedException;
 import br.com.gopro.api.model.AppUser;
 import br.com.gopro.api.repository.AppUserRepository;
+import br.com.gopro.api.service.audit.AuditEventRequest;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -44,41 +47,55 @@ public class AuthServiceImpl implements AuthService {
 
         AppUser user = appUserRepository.findByLogin(dto.login().trim())
                 .orElseThrow(() -> {
-                    auditLogService.log(
-                            null,
-                            AuditActions.LOGIN_FAILED,
-                            "users",
-                            null,
-                            null,
-                            Map.of("login", dto.login(), "reason", "NOT_FOUND"),
-                            request
-                    );
+                    auditLogService.log(AuditEventRequest.builder()
+                                    .actorUserId(null)
+                                    .tipoAuditoria(AuditScopeEnum.SYSTEM)
+                                    .modulo("Sistema")
+                                    .feature("Login")
+                                    .entidadePrincipal("Usuario")
+                                    .acao("LOGIN")
+                                    .resultado(AuditResultEnum.FALHA)
+                                    .resumo("Falha de login para '" + dto.login() + "'")
+                                    .descricao("Tentativa de acesso negada por credenciais invalidas.")
+                                    .detalhesTecnicos(Map.of("login", dto.login(), "reason", "NOT_FOUND"))
+                                    .build(),
+                            request);
                     return new UnauthorizedException(GENERIC_INVALID_CREDENTIALS);
                 });
 
         if (!Boolean.TRUE.equals(user.getIsActive()) || user.getStatus() != UserStatusEnum.ACTIVE) {
-            auditLogService.log(
-                    user.getId(),
-                    AuditActions.LOGIN_FAILED,
-                    "users",
-                    String.valueOf(user.getId()),
-                    null,
-                    Map.of("login", dto.login(), "reason", "INACTIVE_OR_DISABLED"),
-                    request
-            );
+            auditLogService.log(AuditEventRequest.builder()
+                            .actorUserId(user.getId())
+                            .tipoAuditoria(AuditScopeEnum.SYSTEM)
+                            .modulo("Sistema")
+                            .feature("Login")
+                            .entidadePrincipal("Usuario")
+                            .entidadeId(String.valueOf(user.getId()))
+                            .acao("LOGIN")
+                            .resultado(AuditResultEnum.FALHA)
+                            .resumo("Falha de login para '" + user.getEmail() + "'")
+                            .descricao("Tentativa de acesso negada porque o usuario esta inativo ou bloqueado.")
+                            .detalhesTecnicos(Map.of("login", dto.login(), "reason", "INACTIVE_OR_DISABLED"))
+                            .build(),
+                    request);
             throw new UnauthorizedException(GENERIC_INVALID_CREDENTIALS);
         }
 
         if (!passwordEncoder.matches(dto.password(), user.getPasswordHash())) {
-            auditLogService.log(
-                    user.getId(),
-                    AuditActions.LOGIN_FAILED,
-                    "users",
-                    String.valueOf(user.getId()),
-                    null,
-                    Map.of("login", dto.login(), "reason", "PASSWORD_MISMATCH"),
-                    request
-            );
+            auditLogService.log(AuditEventRequest.builder()
+                            .actorUserId(user.getId())
+                            .tipoAuditoria(AuditScopeEnum.SYSTEM)
+                            .modulo("Sistema")
+                            .feature("Login")
+                            .entidadePrincipal("Usuario")
+                            .entidadeId(String.valueOf(user.getId()))
+                            .acao("LOGIN")
+                            .resultado(AuditResultEnum.FALHA)
+                            .resumo("Falha de login para '" + user.getEmail() + "'")
+                            .descricao("Tentativa de acesso negada por senha informada incorretamente.")
+                            .detalhesTecnicos(Map.of("login", dto.login(), "reason", "PASSWORD_MISMATCH"))
+                            .build(),
+                    request);
             throw new UnauthorizedException(GENERIC_INVALID_CREDENTIALS);
         }
 
@@ -88,15 +105,20 @@ public class AuthServiceImpl implements AuthService {
         String accessToken = jwtService.generateAccessToken(user);
         AuthUserResponseDTO userDto = toAuthUserDTO(user);
 
-        auditLogService.log(
-                user.getId(),
-                AuditActions.LOGIN_SUCCESS,
-                "users",
-                String.valueOf(user.getId()),
-                null,
-                Map.of("email", user.getEmail(), "role", user.getRole()),
-                request
-        );
+        auditLogService.log(AuditEventRequest.builder()
+                        .actorUserId(user.getId())
+                        .tipoAuditoria(AuditScopeEnum.SYSTEM)
+                        .modulo("Sistema")
+                        .feature("Login")
+                        .entidadePrincipal("Usuario")
+                        .entidadeId(String.valueOf(user.getId()))
+                        .acao("LOGIN")
+                        .resultado(AuditResultEnum.SUCESSO)
+                        .resumo("Login realizado por " + user.getFullName())
+                        .descricao("Acesso autenticado com sucesso no sistema.")
+                        .depois(Map.of("email", user.getEmail(), "role", user.getRole()))
+                        .build(),
+                request);
 
         return new AuthLoginResponseDTO(
                 accessToken,

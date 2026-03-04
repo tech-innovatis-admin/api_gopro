@@ -76,7 +76,7 @@ class UserAdminServiceImplTest {
         assertThat(response.role()).isEqualTo(UserRoleEnum.ADMIN);
         assertThat(response.status()).isEqualTo(UserStatusEnum.DISABLED);
         assertThat(response.isActive()).isFalse();
-        verify(auditLogService).log(eq(1L), eq(AuditActions.USER_UPDATED), eq("users"), eq("10"), any(), any(), eq(request));
+        verify(auditLogService).log(any(br.com.gopro.api.service.audit.AuditEventRequest.class), eq(request));
     }
 
     private AppUser user(Long id, UserRoleEnum role, UserStatusEnum status) {

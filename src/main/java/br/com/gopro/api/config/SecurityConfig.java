@@ -2,6 +2,7 @@ package br.com.gopro.api.config;
 
 import br.com.gopro.api.repository.*;
 import br.com.gopro.api.service.AuditLogService;
+import br.com.gopro.api.service.audit.AuditSnapshotExtractor;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -97,6 +98,8 @@ public class SecurityConfig {
     public ApiMutationAuditFilter apiMutationAuditFilter(
             AuditLogService auditLogService,
             ObjectMapper objectMapper,
+            AuditSnapshotExtractor auditSnapshotExtractor,
+            ProjectRepository projectRepository,
             BudgetCategoryRepository budgetCategoryRepository,
             BudgetItemRepository budgetItemRepository,
             BudgetTransferRepository budgetTransferRepository,
@@ -113,6 +116,8 @@ public class SecurityConfig {
         return new ApiMutationAuditFilter(
                 auditLogService,
                 objectMapper,
+                auditSnapshotExtractor,
+                projectRepository,
                 budgetCategoryRepository,
                 budgetItemRepository,
                 budgetTransferRepository,

@@ -142,7 +142,7 @@ class AllowedRegistrationServiceImplTest {
         assertThat(invite.getUsedAt()).isNotNull();
 
         verify(allowedRegistrationRepository, atLeastOnce()).save(invite);
-        verify(auditLogService, atLeast(2)).log(any(), anyString(), anyString(), anyString(), any(), any(), eq(request));
+        verify(auditLogService, atLeast(2)).log(any(br.com.gopro.api.service.audit.AuditEventRequest.class), eq(request));
     }
 
     @Test

@@ -4,12 +4,16 @@ import br.com.gopro.api.config.AuthenticatedUserPrincipal;
 import br.com.gopro.api.dtos.AdminUserResponseDTO;
 import br.com.gopro.api.dtos.AdminUserUpdateRequestDTO;
 import br.com.gopro.api.dtos.PageResponseDTO;
+import br.com.gopro.api.enums.AuditResultEnum;
+import br.com.gopro.api.enums.AuditScopeEnum;
 import br.com.gopro.api.enums.UserRoleEnum;
 import br.com.gopro.api.enums.UserStatusEnum;
 import br.com.gopro.api.exception.BusinessException;
 import br.com.gopro.api.exception.ResourceNotFoundException;
 import br.com.gopro.api.model.AppUser;
 import br.com.gopro.api.repository.AppUserRepository;
+import br.com.gopro.api.service.audit.AuditEventRequest;
+import br.com.gopro.api.service.audit.AuditFieldChange;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -93,13 +97,23 @@ public class UserAdminServiceImpl implements UserAdminService {
         target.setUpdatedBy(actor.id());
 
         AppUser saved = appUserRepository.save(target);
+        Map<String, Object> after = snapshot(saved);
         auditLogService.log(
-                actor.id(),
-                AuditActions.USER_UPDATED,
-                "users",
-                String.valueOf(saved.getId()),
-                before,
-                snapshot(saved),
+                AuditEventRequest.builder()
+                        .actorUserId(actor.id())
+                        .tipoAuditoria(AuditScopeEnum.USERS)
+                        .modulo("Usuarios")
+                        .feature("Gestao de usuarios")
+                        .entidadePrincipal("Usuario")
+                        .entidadeId(String.valueOf(saved.getId()))
+                        .acao("ATUALIZAR")
+                        .resultado(AuditResultEnum.SUCESSO)
+                        .resumo("Usuario " + saved.getFullName() + ": cadastro atualizado")
+                        .descricao("Perfil de usuario atualizado na tela de administracao.")
+                        .antes(before)
+                        .depois(after)
+                        .alteracoes(buildChanges(before, after))
+                        .build(),
                 request
         );
 
@@ -149,5 +163,18 @@ public class UserAdminServiceImpl implements UserAdminService {
         map.put("status", user.getStatus());
         map.put("isActive", user.getIsActive());
         return map;
+    }
+
+    private List<AuditFieldChange> buildChanges(Map<String, Object> before, Map<String, Object> after) {
+        List<AuditFieldChange> changes = new java.util.ArrayList<>();
+        for (Map.Entry<String, Object> entry : before.entrySet()) {
+            Object oldValue = entry.getValue();
+            Object newValue = after.get(entry.getKey());
+            if ((oldValue == null && newValue == null) || (oldValue != null && oldValue.equals(newValue))) {
+                continue;
+            }
+            changes.add(new AuditFieldChange(entry.getKey(), oldValue, newValue, "EDITADO"));
+        }
+        return changes;
     }
 }

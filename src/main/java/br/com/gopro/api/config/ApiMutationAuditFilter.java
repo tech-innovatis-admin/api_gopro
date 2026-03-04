@@ -1,31 +1,38 @@
 package br.com.gopro.api.config;
 
 import br.com.gopro.api.enums.AuditScopeEnum;
+import br.com.gopro.api.enums.AuditResultEnum;
 import br.com.gopro.api.enums.DocumentOwnerTypeEnum;
 import br.com.gopro.api.model.Document;
 import br.com.gopro.api.repository.*;
 import br.com.gopro.api.service.AuditLogService;
+import br.com.gopro.api.service.audit.AuditEventRequest;
+import br.com.gopro.api.service.audit.AuditFieldChange;
+import br.com.gopro.api.service.audit.AuditSnapshotExtractor;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.Part;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.filter.OncePerRequestFilter;
 import org.springframework.web.util.ContentCachingRequestWrapper;
+import org.springframework.web.util.ContentCachingResponseWrapper;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 
+import static java.util.Map.entry;
+
 @RequiredArgsConstructor
 @Slf4j
 public class ApiMutationAuditFilter extends OncePerRequestFilter {
-
     private static final Set<String> MUTATING_METHODS = Set.of("POST", "PUT", "PATCH", "DELETE");
 
     private static final Set<String> SKIPPED_PATH_PREFIXES = Set.of(
@@ -75,9 +82,75 @@ public class ApiMutationAuditFilter extends OncePerRequestFilter {
             DocumentOwnerTypeEnum.SECRETARY
     );
 
+    private static final Map<String, String> PROJECT_FIELD_LABELS = Map.ofEntries(
+            entry("name", "Nome do projeto"),
+            entry("code", "Codigo do projeto"),
+            entry("object", "Objeto do projeto"),
+            entry("primaryPartnerId", "Parceiro primario"),
+            entry("secundaryPartnerId", "Parceiro secundario"),
+            entry("primaryClientId", "Cliente primario"),
+            entry("secundaryClientId", "Cliente secundario"),
+            entry("cordinatorId", "Coordenador"),
+            entry("projectGovIf", "Unidade GOV/IF"),
+            entry("projectType", "Tipo do projeto"),
+            entry("projectStatus", "Status do projeto"),
+            entry("contractValue", "Valor do contrato"),
+            entry("startDate", "Data de inicio"),
+            entry("endDate", "Data de termino"),
+            entry("openingDate", "Data de abertura"),
+            entry("closingDate", "Data de encerramento"),
+            entry("city", "Cidade"),
+            entry("state", "Estado"),
+            entry("executionLocation", "Local de execucao"),
+            entry("areaSegmento", "Area/segmento")
+    );
+
+    private static final Map<String, String> PROJECT_FIELD_ACTION_PHRASES = Map.ofEntries(
+            entry("name", "o nome do projeto"),
+            entry("code", "o codigo do projeto"),
+            entry("object", "o objeto do projeto"),
+            entry("primaryPartnerId", "o parceiro primario"),
+            entry("secundaryPartnerId", "o parceiro secundario"),
+            entry("primaryClientId", "o cliente primario"),
+            entry("secundaryClientId", "o cliente secundario"),
+            entry("cordinatorId", "o coordenador"),
+            entry("projectGovIf", "a unidade GOV/IF"),
+            entry("projectType", "o tipo do projeto"),
+            entry("projectStatus", "o status do projeto"),
+            entry("contractValue", "o valor do contrato"),
+            entry("startDate", "a data de inicio"),
+            entry("endDate", "a data de termino"),
+            entry("openingDate", "a data de abertura"),
+            entry("closingDate", "a data de encerramento"),
+            entry("city", "a cidade"),
+            entry("state", "o estado"),
+            entry("executionLocation", "o local de execucao"),
+            entry("areaSegmento", "a area/segmento")
+    );
+
+    private static final Map<String, String> RESOURCE_LABELS = Map.ofEntries(
+            entry("projects", "projeto"),
+            entry("documents", "arquivo"),
+            entry("budget-categories", "rubrica"),
+            entry("budget-items", "item de rubrica"),
+            entry("budget-transfers", "remanejamento"),
+            entry("disbursement-schedules", "desembolso"),
+            entry("goals", "meta"),
+            entry("stages", "etapa"),
+            entry("phases", "fase"),
+            entry("incomes", "receita"),
+            entry("expenses", "despesa"),
+            entry("project-people", "vinculo de pessoa"),
+            entry("project-companies", "vinculo de empresa"),
+            entry("project-organizations", "vinculo de organizacao"),
+            entry("project_organization", "vinculo de organizacao")
+    );
+
     private final AuditLogService auditLogService;
     private final ObjectMapper objectMapper;
+    private final AuditSnapshotExtractor auditSnapshotExtractor;
 
+    private final ProjectRepository projectRepository;
     private final BudgetCategoryRepository budgetCategoryRepository;
     private final BudgetItemRepository budgetItemRepository;
     private final BudgetTransferRepository budgetTransferRepository;
@@ -119,57 +192,304 @@ public class ApiMutationAuditFilter extends OncePerRequestFilter {
             requestToUse = new ContentCachingRequestWrapper(request);
         }
 
-        filterChain.doFilter(requestToUse, response);
-
-        if (response.getStatus() >= 400) {
-            return;
-        }
-
-        Long actorUserId = resolveActorUserId();
-        if (actorUserId == null) {
-            return;
-        }
+        ContentCachingResponseWrapper responseToUse = new ContentCachingResponseWrapper(response);
 
         try {
-            AuditMutationContext context = resolveContext(requestToUse);
-            String action = "API_" + request.getMethod().toUpperCase();
-            String entityType = context.scope().prefix() + ":" + context.resource();
+            String idSegment = resolveIdSegment(requestToUse);
+            String baseResource = resolveBaseResource(requestToUse);
+            String method = requestToUse.getMethod().toUpperCase(Locale.ROOT);
+            Map<String, Object> beforeSnapshot = resolveSnapshot(baseResource, idSegment);
 
-            Map<String, Object> payload = new LinkedHashMap<>();
-            payload.put("scope", context.scope().name());
-            payload.put("resource", context.resource());
-            payload.put("path", normalizePath(requestToUse));
-            payload.put("method", request.getMethod().toUpperCase());
-            payload.put("status", response.getStatus());
-            if (context.contractId() != null) {
-                payload.put("contractId", context.contractId());
-            }
-            if (context.ownerType() != null) {
-                payload.put("ownerType", context.ownerType().name());
-                payload.put("ownerId", context.ownerId());
+            filterChain.doFilter(requestToUse, responseToUse);
+
+            if (responseToUse.getStatus() >= 400) {
+                return;
             }
 
-            auditLogService.log(
-                    actorUserId,
-                    action,
-                    entityType,
-                    context.entityId(),
-                    null,
-                    payload,
-                    requestToUse
-            );
-        } catch (Exception ex) {
-            log.debug("mutation_audit_failed path={} reason={}", normalizePath(requestToUse), ex.getMessage());
+            Long actorUserId = resolveActorUserId();
+            if (actorUserId == null) {
+                return;
+            }
+
+            try {
+                JsonNode requestBody = parseJsonBody(requestToUse);
+                JsonNode responseBody = parseJsonResponse(responseToUse);
+
+                AuditMutationContext context = resolveContext(requestToUse, requestBody);
+                AuditActionDescription actionDescription = buildActionDescription(
+                        requestToUse,
+                        context,
+                        requestBody,
+                        responseBody
+                );
+
+                String entityType = context.scope().prefix() + ":" + context.resource();
+                Map<String, Object> payload = buildPayload(
+                        requestToUse,
+                        responseToUse,
+                        context,
+                        actionDescription
+                );
+
+                Map<String, Object> afterSnapshot = resolveAfterSnapshot(
+                        method,
+                        baseResource,
+                        idSegment,
+                        responseBody,
+                        payload
+                );
+
+                String actionCode = resolveActionCode(method);
+                String resourceKey = normalizeResourceKey(context.resource());
+                String modulo = resolveModulo(context.scope(), resourceKey);
+                String feature = resolveFeature(resourceKey, actionCode);
+                String entidadePrincipal = resolveEntidadePrincipal(context.scope(), resourceKey);
+                String aba = resolveAba(context.scope(), resourceKey);
+                String subsecao = resolveSubsecao(resourceKey);
+                String resumo = buildResumo(context, actionDescription, actionCode);
+                String descricao = buildDescricao(feature, aba, actionDescription.changedFields());
+
+                List<AuditFieldChange> alteracoes = null;
+                if (!actionDescription.changedFields().isEmpty()) {
+                    alteracoes = actionDescription.changedFields().stream()
+                            .map(change -> new AuditFieldChange(change.label(), null, change.value(), "EDITADO"))
+                            .toList();
+                }
+
+                Map<String, Object> detalhesTecnicos = new LinkedHashMap<>(payload);
+                detalhesTecnicos.put("entityTypeLegacy", entityType);
+                if (context.contractId() != null) {
+                    detalhesTecnicos.put("contractId", context.contractId());
+                }
+
+                auditLogService.log(
+                        AuditEventRequest.builder()
+                                .actorUserId(actorUserId)
+                                .tipoAuditoria(normalizeScope(context.scope(), resourceKey))
+                                .modulo(modulo)
+                                .feature(feature)
+                                .entidadePrincipal(entidadePrincipal)
+                                .entidadeId(context.entityId())
+                                .aba(aba)
+                                .subsecao(subsecao)
+                                .acao(actionCode)
+                                .resumo(resumo)
+                                .descricao(descricao)
+                                .resultado(AuditResultEnum.SUCESSO)
+                                .antes(beforeSnapshot)
+                                .depois(afterSnapshot)
+                                .alteracoes(alteracoes)
+                                .detalhesTecnicos(detalhesTecnicos)
+                                .build(),
+                        requestToUse
+                );
+            } catch (Exception ex) {
+                log.debug("mutation_audit_failed path={} reason={}", normalizePath(requestToUse), ex.getMessage());
+            }
+        } finally {
+            responseToUse.copyBodyToResponse();
         }
     }
 
-    private AuditMutationContext resolveContext(HttpServletRequest request) {
+    private String resolveBaseResource(HttpServletRequest request) {
+        String path = normalizePath(request);
+        String[] segments = path.split("/");
+        return segments.length > 1 ? normalizeResourceName(segments[1]) : "unknown";
+    }
+
+    private String resolveIdSegment(HttpServletRequest request) {
+        String path = normalizePath(request);
+        String[] segments = path.split("/");
+        return segments.length > 2 ? segments[2] : null;
+    }
+
+    private Map<String, Object> resolveSnapshot(String baseResource, String idSegment) {
+        if (idSegment == null || idSegment.isBlank()) {
+            return null;
+        }
+        try {
+            return switch (baseResource) {
+                case "projects" -> projectRepository.findById(parseLong(idSegment)).map(auditSnapshotExtractor::extract).orElse(null);
+                case "budget-categories" -> budgetCategoryRepository.findById(parseLong(idSegment)).map(auditSnapshotExtractor::extract).orElse(null);
+                case "budget-items" -> budgetItemRepository.findById(parseLong(idSegment)).map(auditSnapshotExtractor::extract).orElse(null);
+                case "budget-transfers" -> budgetTransferRepository.findById(parseLong(idSegment)).map(auditSnapshotExtractor::extract).orElse(null);
+                case "disbursement-schedules" -> disbursementScheduleRepository.findById(parseLong(idSegment)).map(auditSnapshotExtractor::extract).orElse(null);
+                case "goals" -> goalRepository.findById(parseLong(idSegment)).map(auditSnapshotExtractor::extract).orElse(null);
+                case "stages" -> stageRepository.findById(parseLong(idSegment)).map(auditSnapshotExtractor::extract).orElse(null);
+                case "phases" -> phaseRepository.findById(parseLong(idSegment)).map(auditSnapshotExtractor::extract).orElse(null);
+                case "incomes" -> incomeRepository.findById(parseLong(idSegment)).map(auditSnapshotExtractor::extract).orElse(null);
+                case "expenses" -> expenseRepository.findById(parseLong(idSegment)).map(auditSnapshotExtractor::extract).orElse(null);
+                case "project-people" -> projectPeopleRepository.findById(parseLong(idSegment)).map(auditSnapshotExtractor::extract).orElse(null);
+                case "project-companies", "project-organizations", "project_organization" ->
+                        projectCompanyRepository.findById(parseLong(idSegment)).map(auditSnapshotExtractor::extract).orElse(null);
+                case "documents" -> {
+                    try {
+                        yield documentRepository.findById(UUID.fromString(idSegment)).map(auditSnapshotExtractor::extract).orElse(null);
+                    } catch (IllegalArgumentException ignored) {
+                        yield null;
+                    }
+                }
+                default -> null;
+            };
+        } catch (Exception ignored) {
+            return null;
+        }
+    }
+
+    private Map<String, Object> resolveAfterSnapshot(
+            String method,
+            String baseResource,
+            String idSegment,
+            JsonNode responseBody,
+            Map<String, Object> payload
+    ) {
+        if ("DELETE".equals(method)) {
+            return null;
+        }
+
+        String recordId = idSegment;
+        if ((recordId == null || recordId.isBlank()) && responseBody != null) {
+            String parsed = extractText(responseBody, "id");
+            if (parsed != null && !parsed.isBlank()) {
+                recordId = parsed;
+            }
+        }
+
+        Map<String, Object> fromRepository = resolveSnapshot(baseResource, recordId);
+        if (fromRepository != null) {
+            return fromRepository;
+        }
+
+        if (responseBody != null) {
+            return auditSnapshotExtractor.extract(objectMapper.convertValue(responseBody, Map.class));
+        }
+
+        return payload;
+    }
+
+    private String resolveActionCode(String method) {
+        return switch (method) {
+            case "POST" -> "CRIAR";
+            case "DELETE" -> "EXCLUIR";
+            default -> "ATUALIZAR";
+        };
+    }
+
+    private AuditScopeEnum normalizeScope(AuditScopeEnum original, String resourceKey) {
+        if (original == AuditScopeEnum.PEOPLE_COMPANIES) {
+            return AuditScopeEnum.SYSTEM;
+        }
+        if ("users".equals(resourceKey) || resourceKey.startsWith("allowed_registration")) {
+            return AuditScopeEnum.USERS;
+        }
+        return original;
+    }
+
+    private String resolveModulo(AuditScopeEnum scope, String resourceKey) {
+        AuditScopeEnum effectiveScope = normalizeScope(scope, resourceKey);
+        if (effectiveScope == AuditScopeEnum.CONTRACTS) {
+            return "Contratos";
+        }
+        if (effectiveScope == AuditScopeEnum.USERS) {
+            return "Usuarios";
+        }
+        return "Sistema";
+    }
+
+    private String resolveFeature(String resourceKey, String actionCode) {
+        String resource = RESOURCE_LABELS.getOrDefault(resourceKey, resourceKey);
+        if (resource == null || resource.isBlank()) {
+            resource = "registro";
+        }
+        return switch (actionCode) {
+            case "CRIAR" -> "Cadastro de " + resource;
+            case "EXCLUIR" -> "Exclusao de " + resource;
+            default -> "Edicao de " + resource;
+        };
+    }
+
+    private String resolveEntidadePrincipal(AuditScopeEnum scope, String resourceKey) {
+        AuditScopeEnum effectiveScope = normalizeScope(scope, resourceKey);
+        if (effectiveScope == AuditScopeEnum.CONTRACTS) {
+            return "Contrato";
+        }
+        if (effectiveScope == AuditScopeEnum.USERS) {
+            return "Usuario";
+        }
+        return "Sistema";
+    }
+
+    private String resolveAba(AuditScopeEnum scope, String resourceKey) {
+        if (normalizeScope(scope, resourceKey) != AuditScopeEnum.CONTRACTS) {
+            return null;
+        }
+        return switch (resourceKey) {
+            case "projects" -> "Dados Gerais";
+            case "budget-categories", "budget-items", "budget-transfers", "incomes", "expenses" -> "Financeiro";
+            case "disbursement-schedules" -> "Desembolsos";
+            case "goals", "stages", "phases" -> "Cronograma";
+            case "project-people", "project-companies", "project-organizations", "project_organization" -> "Equipe e Parceiros";
+            case "documents" -> "Anexos";
+            default -> "Geral";
+        };
+    }
+
+    private String resolveSubsecao(String resourceKey) {
+        return switch (resourceKey) {
+            case "budget-categories" -> "Rubricas";
+            case "budget-items" -> "Itens de rubrica";
+            case "budget-transfers" -> "Remanejamentos";
+            case "project-people" -> "Pessoas vinculadas";
+            case "project-companies", "project-organizations", "project_organization" -> "Empresas e organizacoes vinculadas";
+            default -> null;
+        };
+    }
+
+    private String buildResumo(AuditMutationContext context, AuditActionDescription actionDescription, String actionCode) {
+        if (context.scope() == AuditScopeEnum.CONTRACTS) {
+            String contract = context.entityId() != null ? "Contrato #" + context.entityId() : "Contrato";
+            String resourceKey = normalizeResourceKey(context.resource());
+            String aba = resolveAba(context.scope(), resourceKey);
+            if ("documents".equals(resourceKey) && actionDescription.fileName() != null) {
+                String verb = "CRIAR".equals(actionCode) ? "Adicionado anexo" : "EXCLUIR".equals(actionCode) ? "Excluido anexo" : "Atualizado anexo";
+                return contract + ": " + verb + " '" + actionDescription.fileName() + "' (Aba " + aba + ")";
+            }
+            return contract + ": " + actionDescription.action() + (aba != null ? " (Aba " + aba + ")" : "");
+        }
+        return actionDescription.action();
+    }
+
+    private String buildDescricao(String feature, String aba, List<ChangedField> changedFields) {
+        StringBuilder description = new StringBuilder();
+        description.append("Tela ").append(feature).append(". ");
+        if (aba != null && !aba.isBlank()) {
+            description.append("Alteracao registrada na aba ").append(aba).append(". ");
+        }
+        if (changedFields == null || changedFields.isEmpty()) {
+            description.append("Sem detalhamento de campos alterados.");
+            return description.toString();
+        }
+        description.append("Campos alterados: ");
+        int limit = Math.min(changedFields.size(), 5);
+        for (int i = 0; i < limit; i++) {
+            if (i > 0) {
+                description.append(", ");
+            }
+            description.append(changedFields.get(i).label());
+        }
+        if (changedFields.size() > limit) {
+            description.append(", outros campos");
+        }
+        description.append(".");
+        return description.toString();
+    }
+
+    private AuditMutationContext resolveContext(HttpServletRequest request, JsonNode body) {
         String path = normalizePath(request);
         String[] segments = path.split("/");
         String baseResource = segments.length > 1 ? normalizeResourceName(segments[1]) : "unknown";
         String idSegment = segments.length > 2 ? segments[2] : null;
 
-        JsonNode body = parseJsonBody(request);
         OwnerReference ownerReference = resolveOwnerReference(request, baseResource, idSegment, body);
         Long contractId = resolveContractId(request, baseResource, idSegment, body, ownerReference);
         AuditScopeEnum scope = resolveScope(baseResource, ownerReference, contractId);
@@ -179,11 +499,270 @@ public class ApiMutationAuditFilter extends OncePerRequestFilter {
         return new AuditMutationContext(scope, resource, contractId, entityId, ownerReference);
     }
 
+    private AuditActionDescription buildActionDescription(
+            HttpServletRequest request,
+            AuditMutationContext context,
+            JsonNode requestBody,
+            JsonNode responseBody
+    ) {
+        String method = request.getMethod().toUpperCase(Locale.ROOT);
+        String resourceKey = normalizeResourceKey(context.resource());
+        List<ChangedField> changedFields = extractChangedFields(resourceKey, requestBody);
+
+        String fileName = null;
+        if ("documents".equals(resourceKey)) {
+            fileName = firstNonBlank(
+                    extractText(responseBody, "originalName"),
+                    context.documentName(),
+                    extractMultipartFilename(request)
+            );
+
+            if (fileName != null) {
+                changedFields = appendChangeIfMissing(changedFields, "originalName", "Nome do arquivo", fileName);
+            }
+
+            String category = firstNonBlank(
+                    extractText(responseBody, "category"),
+                    request.getParameter("category")
+            );
+            if (category != null) {
+                changedFields = appendChangeIfMissing(changedFields, "category", "Categoria", category);
+            }
+        }
+
+        String actionLabel = resolveActionLabel(method, resourceKey, changedFields);
+        return new AuditActionDescription(actionLabel, changedFields, fileName);
+    }
+
+    private String resolveActionLabel(String method, String resourceKey, List<ChangedField> changedFields) {
+        if ("projects".equals(resourceKey)) {
+            return switch (method) {
+                case "POST" -> "Criou o projeto";
+                case "DELETE" -> "Excluiu o projeto";
+                case "PUT", "PATCH" -> {
+                    if (changedFields.size() == 1) {
+                        String phrase = PROJECT_FIELD_ACTION_PHRASES.get(changedFields.get(0).field());
+                        if (phrase != null) {
+                            yield "Alterou " + phrase;
+                        }
+                    }
+                    yield "Alterou informacoes do projeto";
+                }
+                default -> "Alterou o projeto";
+            };
+        }
+
+        if ("documents".equals(resourceKey)) {
+            return switch (method) {
+                case "POST" -> "Adicionou o arquivo";
+                case "DELETE" -> "Excluiu o arquivo";
+                case "PUT", "PATCH" -> "Atualizou o arquivo";
+                default -> "Alterou arquivo";
+            };
+        }
+
+        String resourceLabel = RESOURCE_LABELS.getOrDefault(resourceKey, "registro");
+        return switch (method) {
+            case "POST" -> "Criou " + resourceLabel;
+            case "PUT", "PATCH" -> "Atualizou " + resourceLabel;
+            case "DELETE" -> "Excluiu " + resourceLabel;
+            default -> "Alterou " + resourceLabel;
+        };
+    }
+
+    private Map<String, Object> buildPayload(
+            HttpServletRequest request,
+            HttpServletResponse response,
+            AuditMutationContext context,
+            AuditActionDescription actionDescription
+    ) {
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("scope", context.scope().name());
+        payload.put("resource", context.resource());
+        payload.put("path", normalizePath(request));
+        payload.put("method", request.getMethod().toUpperCase(Locale.ROOT));
+        payload.put("status", response.getStatus());
+        payload.put("actionLabel", actionDescription.action());
+
+        if (context.contractId() != null) {
+            payload.put("contractId", context.contractId());
+        }
+        if (context.ownerType() != null) {
+            payload.put("ownerType", context.ownerType().name());
+            payload.put("ownerId", context.ownerId());
+        }
+        if (actionDescription.fileName() != null) {
+            payload.put("fileName", actionDescription.fileName());
+        }
+        if (!actionDescription.changedFields().isEmpty()) {
+            payload.put("changes", actionDescription.changedFields());
+        }
+
+        return payload;
+    }
+
+    private List<ChangedField> extractChangedFields(String resourceKey, JsonNode body) {
+        if (body == null || !body.isObject()) {
+            return List.of();
+        }
+
+        List<ChangedField> changedFields = new ArrayList<>();
+        Iterator<Map.Entry<String, JsonNode>> fields = body.fields();
+        while (fields.hasNext()) {
+            Map.Entry<String, JsonNode> field = fields.next();
+            String fieldName = field.getKey();
+            if ("createdBy".equals(fieldName) || "updatedBy".equals(fieldName)) {
+                continue;
+            }
+
+            String label = resolveFieldLabel(resourceKey, fieldName);
+            String value = summarizeValue(field.getValue());
+            changedFields.add(new ChangedField(fieldName, label, value));
+        }
+
+        return changedFields;
+    }
+
+    private String resolveFieldLabel(String resourceKey, String fieldName) {
+        if ("projects".equals(resourceKey)) {
+            return PROJECT_FIELD_LABELS.getOrDefault(fieldName, humanizeFieldName(fieldName));
+        }
+        return humanizeFieldName(fieldName);
+    }
+
+    private String summarizeValue(JsonNode value) {
+        if (value == null || value.isNull()) {
+            return "vazio";
+        }
+        if (value.isTextual()) {
+            return trimAndLimit(value.asText(), 160);
+        }
+        if (value.isNumber() || value.isBoolean()) {
+            return value.asText();
+        }
+        if (value.isArray()) {
+            return value.size() + " item(ns)";
+        }
+        if (value.isObject()) {
+            return "objeto";
+        }
+        return trimAndLimit(value.toString(), 160);
+    }
+
+    private List<ChangedField> appendChangeIfMissing(
+            List<ChangedField> original,
+            String field,
+            String label,
+            String value
+    ) {
+        for (ChangedField changedField : original) {
+            if (field.equals(changedField.field())) {
+                return original;
+            }
+        }
+        List<ChangedField> copy = new ArrayList<>(original);
+        copy.add(new ChangedField(field, label, value));
+        return copy;
+    }
+
+    private JsonNode parseJsonResponse(ContentCachingResponseWrapper response) {
+        String contentType = response.getContentType();
+        if (contentType == null || !contentType.toLowerCase(Locale.ROOT).contains("application/json")) {
+            return null;
+        }
+
+        byte[] bodyBytes = response.getContentAsByteArray();
+        if (bodyBytes.length == 0) {
+            return null;
+        }
+
+        try {
+            return objectMapper.readTree(new String(bodyBytes, StandardCharsets.UTF_8));
+        } catch (Exception ex) {
+            return null;
+        }
+    }
+
+    private String normalizeResourceKey(String resource) {
+        if (resource == null || resource.isBlank()) {
+            return "unknown";
+        }
+        int dotIndex = resource.indexOf('.');
+        if (dotIndex < 0) {
+            return resource;
+        }
+        return resource.substring(0, dotIndex);
+    }
+
+    private String humanizeFieldName(String fieldName) {
+        if (fieldName == null || fieldName.isBlank()) {
+            return "Campo";
+        }
+        String withSpaces = fieldName
+                .replaceAll("([a-z])([A-Z])", "$1 $2")
+                .replace('_', ' ')
+                .trim();
+        if (withSpaces.isEmpty()) {
+            return "Campo";
+        }
+        return Character.toUpperCase(withSpaces.charAt(0)) + withSpaces.substring(1).toLowerCase(Locale.ROOT);
+    }
+
+    private String trimAndLimit(String value, int maxLength) {
+        if (value == null) {
+            return "";
+        }
+        String normalized = value.trim();
+        if (normalized.length() <= maxLength) {
+            return normalized;
+        }
+        return normalized.substring(0, maxLength) + "...";
+    }
+
+    private String extractMultipartFilename(HttpServletRequest request) {
+        if (!isMultipartRequest(request)) {
+            return null;
+        }
+        try {
+            Collection<Part> parts = request.getParts();
+            for (Part part : parts) {
+                String submittedFileName = part.getSubmittedFileName();
+                if (submittedFileName != null && !submittedFileName.isBlank()) {
+                    return sanitizeFileName(submittedFileName);
+                }
+            }
+        } catch (Exception ignored) {
+            // ignore multipart parsing failures in audit enrichment
+        }
+        return null;
+    }
+
+    private String sanitizeFileName(String value) {
+        String normalized = value.replace("\\", "/");
+        int lastSlash = normalized.lastIndexOf('/');
+        if (lastSlash >= 0 && lastSlash < normalized.length() - 1) {
+            normalized = normalized.substring(lastSlash + 1);
+        }
+        return normalized.trim();
+    }
+
+    private String firstNonBlank(String... candidates) {
+        if (candidates == null) {
+            return null;
+        }
+        for (String candidate : candidates) {
+            if (candidate != null && !candidate.isBlank()) {
+                return candidate.trim();
+            }
+        }
+        return null;
+    }
+
     private String buildResourceLabel(String baseResource, OwnerReference ownerReference) {
         if (!"documents".equals(baseResource) || ownerReference == null) {
             return baseResource;
         }
-        return "documents." + ownerReference.ownerType().name().toLowerCase();
+        return "documents." + ownerReference.ownerType().name().toLowerCase(Locale.ROOT);
     }
 
     private String resolveEntityId(AuditScopeEnum scope, Long contractId, String idSegment) {
@@ -349,7 +928,12 @@ public class ApiMutationAuditFilter extends OncePerRequestFilter {
                 UUID documentId = UUID.fromString(idSegment);
                 Optional<Document> document = documentRepository.findById(documentId);
                 if (document.isPresent()) {
-                    return new OwnerReference(document.get().getOwnerType(), document.get().getOwnerId());
+                    Document loaded = document.get();
+                    return new OwnerReference(
+                            loaded.getOwnerType(),
+                            loaded.getOwnerId(),
+                            loaded.getOriginalName()
+                    );
                 }
             } catch (IllegalArgumentException ignored) {
                 // not a UUID path segment
@@ -364,7 +948,7 @@ public class ApiMutationAuditFilter extends OncePerRequestFilter {
         if (ownerType == null || ownerId == null) {
             return null;
         }
-        return new OwnerReference(ownerType, ownerId);
+        return new OwnerReference(ownerType, ownerId, null);
     }
 
     private Long resolveContractIdFromOwner(OwnerReference ownerReference) {
@@ -411,12 +995,12 @@ public class ApiMutationAuditFilter extends OncePerRequestFilter {
 
     private boolean isJsonRequest(HttpServletRequest request) {
         String contentType = request.getContentType();
-        return contentType != null && contentType.toLowerCase().contains("application/json");
+        return contentType != null && contentType.toLowerCase(Locale.ROOT).contains("application/json");
     }
 
     private boolean isMultipartRequest(HttpServletRequest request) {
         String contentType = request.getContentType();
-        return contentType != null && contentType.toLowerCase().startsWith("multipart/");
+        return contentType != null && contentType.toLowerCase(Locale.ROOT).startsWith("multipart/");
     }
 
     private Long resolveActorUserId() {
@@ -487,13 +1071,13 @@ public class ApiMutationAuditFilter extends OncePerRequestFilter {
             return null;
         }
         try {
-            return DocumentOwnerTypeEnum.valueOf(value.trim().toUpperCase());
+            return DocumentOwnerTypeEnum.valueOf(value.trim().toUpperCase(Locale.ROOT));
         } catch (IllegalArgumentException ex) {
             return null;
         }
     }
 
-    private record OwnerReference(DocumentOwnerTypeEnum ownerType, Long ownerId) {
+    private record OwnerReference(DocumentOwnerTypeEnum ownerType, Long ownerId, String documentName) {
     }
 
     private record AuditMutationContext(
@@ -510,5 +1094,23 @@ public class ApiMutationAuditFilter extends OncePerRequestFilter {
         Long ownerId() {
             return ownerReference != null ? ownerReference.ownerId() : null;
         }
+
+        String documentName() {
+            return ownerReference != null ? ownerReference.documentName() : null;
+        }
+    }
+
+    private record AuditActionDescription(
+            String action,
+            List<ChangedField> changedFields,
+            String fileName
+    ) {
+    }
+
+    private record ChangedField(
+            String field,
+            String label,
+            String value
+    ) {
     }
 }

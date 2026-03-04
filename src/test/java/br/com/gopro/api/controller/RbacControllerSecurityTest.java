@@ -60,7 +60,7 @@ class RbacControllerSecurityTest {
     @Test
     @WithMockUser(roles = "SUPERADMIN")
     void superadmin_shouldAccessAdminAuditEndpoint() throws Exception {
-        when(auditLogService.list(any(), any(), any(), any(), any(), any(), any(), any(), anyInt(), anyInt()))
+        when(auditLogService.list(any(), any(), any(), any(), any(), any(), any(), any(), any(), anyInt(), anyInt()))
                 .thenReturn(new PageResponseDTO<>(List.of(), 0, 20, 0, 0, true, true));
 
         mockMvc.perform(get("/admin/audit"))

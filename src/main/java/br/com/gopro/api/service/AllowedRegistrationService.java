@@ -1,7 +1,13 @@
 package br.com.gopro.api.service;
 
 import br.com.gopro.api.config.AuthenticatedUserPrincipal;
-import br.com.gopro.api.dtos.*;
+import br.com.gopro.api.dtos.AllowedRegistrationCreateRequestDTO;
+import br.com.gopro.api.dtos.AllowedRegistrationReissueRequestDTO;
+import br.com.gopro.api.dtos.AllowedRegistrationResponseDTO;
+import br.com.gopro.api.dtos.AllowedRegistrationValidationResponseDTO;
+import br.com.gopro.api.dtos.PageResponseDTO;
+import br.com.gopro.api.dtos.RegisterCompleteRequestDTO;
+import br.com.gopro.api.dtos.RegisterCompleteResponseDTO;
 import br.com.gopro.api.enums.AllowedRegistrationStatusEnum;
 import jakarta.servlet.http.HttpServletRequest;
 

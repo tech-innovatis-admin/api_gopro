@@ -2,8 +2,18 @@ package br.com.gopro.api.service;
 
 import br.com.gopro.api.config.AuthenticatedUserPrincipal;
 import br.com.gopro.api.config.JwtService;
-import br.com.gopro.api.dtos.*;
+import br.com.gopro.api.dtos.AllowedRegistrationCreateRequestDTO;
+import br.com.gopro.api.dtos.AllowedRegistrationReissueRequestDTO;
+import br.com.gopro.api.dtos.AllowedRegistrationResponseDTO;
+import br.com.gopro.api.dtos.AllowedRegistrationValidationResponseDTO;
+import br.com.gopro.api.dtos.AuthLoginResponseDTO;
+import br.com.gopro.api.dtos.AuthUserResponseDTO;
+import br.com.gopro.api.dtos.PageResponseDTO;
+import br.com.gopro.api.dtos.RegisterCompleteRequestDTO;
+import br.com.gopro.api.dtos.RegisterCompleteResponseDTO;
 import br.com.gopro.api.enums.AllowedRegistrationStatusEnum;
+import br.com.gopro.api.enums.AuditResultEnum;
+import br.com.gopro.api.enums.AuditScopeEnum;
 import br.com.gopro.api.enums.UserStatusEnum;
 import br.com.gopro.api.exception.BusinessException;
 import br.com.gopro.api.exception.ResourceNotFoundException;
@@ -11,6 +21,8 @@ import br.com.gopro.api.model.AllowedRegistration;
 import br.com.gopro.api.model.AppUser;
 import br.com.gopro.api.repository.AllowedRegistrationRepository;
 import br.com.gopro.api.repository.AppUserRepository;
+import br.com.gopro.api.service.audit.AuditEventRequest;
+import br.com.gopro.api.service.audit.AuditFieldChange;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -96,13 +108,26 @@ public class AllowedRegistrationServiceImpl implements AllowedRegistrationServic
         AllowedRegistration saved = allowedRegistrationRepository.save(invite);
         AllowedRegistrationResponseDTO response = toDTO(saved, buildInviteLink(rawToken));
 
+        Map<String, Object> after = snapshot(saved);
         auditLogService.log(
-                actor.id(),
-                isCreate ? AuditActions.INVITE_CREATED : AuditActions.INVITE_REISSUED,
-                "allowed_registrations",
-                String.valueOf(saved.getId()),
-                before,
-                snapshot(saved),
+                AuditEventRequest.builder()
+                        .actorUserId(actor.id())
+                        .tipoAuditoria(AuditScopeEnum.USERS)
+                        .modulo("Usuarios")
+                        .feature("Convites de cadastro")
+                        .entidadePrincipal("Convite de cadastro")
+                        .entidadeId(String.valueOf(saved.getId()))
+                        .acao(isCreate ? "CRIAR" : "ATUALIZAR")
+                        .resultado(AuditResultEnum.SUCESSO)
+                        .resumo(isCreate
+                                ? "Convite criado para " + saved.getEmail()
+                                : "Convite reemitido para " + saved.getEmail())
+                        .descricao("Convite de cadastro preparado para o fluxo de registro publico.")
+                        .antes(before)
+                        .depois(after)
+                        .alteracoes(buildChanges(before, after))
+                        .detalhesTecnicos(Map.of("inviteAction", isCreate ? AuditActions.INVITE_CREATED : AuditActions.INVITE_REISSUED))
+                        .build(),
                 request
         );
 
@@ -169,13 +194,24 @@ public class AllowedRegistrationServiceImpl implements AllowedRegistrationServic
         invite.setUpdatedBy(actor.id());
 
         AllowedRegistration saved = allowedRegistrationRepository.save(invite);
+        Map<String, Object> after = snapshot(saved);
         auditLogService.log(
-                actor.id(),
-                AuditActions.INVITE_CANCELLED,
-                "allowed_registrations",
-                String.valueOf(saved.getId()),
-                before,
-                snapshot(saved),
+                AuditEventRequest.builder()
+                        .actorUserId(actor.id())
+                        .tipoAuditoria(AuditScopeEnum.USERS)
+                        .modulo("Usuarios")
+                        .feature("Convites de cadastro")
+                        .entidadePrincipal("Convite de cadastro")
+                        .entidadeId(String.valueOf(saved.getId()))
+                        .acao("ATUALIZAR")
+                        .resultado(AuditResultEnum.SUCESSO)
+                        .resumo("Convite cancelado para " + saved.getEmail())
+                        .descricao("Convite marcado como cancelado e indisponivel para uso.")
+                        .antes(before)
+                        .depois(after)
+                        .alteracoes(buildChanges(before, after))
+                        .detalhesTecnicos(Map.of("inviteAction", AuditActions.INVITE_CANCELLED))
+                        .build(),
                 request
         );
 
@@ -214,13 +250,24 @@ public class AllowedRegistrationServiceImpl implements AllowedRegistrationServic
         invite.setUpdatedBy(actor.id());
 
         AllowedRegistration saved = allowedRegistrationRepository.save(invite);
+        Map<String, Object> after = snapshot(saved);
         auditLogService.log(
-                actor.id(),
-                AuditActions.INVITE_REISSUED,
-                "allowed_registrations",
-                String.valueOf(saved.getId()),
-                before,
-                snapshot(saved),
+                AuditEventRequest.builder()
+                        .actorUserId(actor.id())
+                        .tipoAuditoria(AuditScopeEnum.USERS)
+                        .modulo("Usuarios")
+                        .feature("Convites de cadastro")
+                        .entidadePrincipal("Convite de cadastro")
+                        .entidadeId(String.valueOf(saved.getId()))
+                        .acao("ATUALIZAR")
+                        .resultado(AuditResultEnum.SUCESSO)
+                        .resumo("Convite reemitido para " + saved.getEmail())
+                        .descricao("Token de convite renovado com nova expiracao.")
+                        .antes(before)
+                        .depois(after)
+                        .alteracoes(buildChanges(before, after))
+                        .detalhesTecnicos(Map.of("inviteAction", AuditActions.INVITE_REISSUED))
+                        .build(),
                 request
         );
 
@@ -236,12 +283,20 @@ public class AllowedRegistrationServiceImpl implements AllowedRegistrationServic
         ensureInviteUsableOrThrow(invite);
 
         auditLogService.log(
-                invite.getInvitedByUser() != null ? invite.getInvitedByUser().getId() : null,
-                AuditActions.INVITE_VALIDATED,
-                "allowed_registrations",
-                String.valueOf(invite.getId()),
-                null,
-                Map.of("email", invite.getEmail()),
+                AuditEventRequest.builder()
+                        .actorUserId(invite.getInvitedByUser() != null ? invite.getInvitedByUser().getId() : null)
+                        .tipoAuditoria(AuditScopeEnum.USERS)
+                        .modulo("Usuarios")
+                        .feature("Validacao de convite")
+                        .entidadePrincipal("Convite de cadastro")
+                        .entidadeId(String.valueOf(invite.getId()))
+                        .acao("ATUALIZAR")
+                        .resultado(AuditResultEnum.SUCESSO)
+                        .resumo("Convite validado para " + invite.getEmail())
+                        .descricao("Token de convite validado para prosseguir com o cadastro.")
+                        .depois(Map.of("email", invite.getEmail()))
+                        .detalhesTecnicos(Map.of("inviteAction", AuditActions.INVITE_VALIDATED))
+                        .build(),
                 request
         );
 
@@ -267,7 +322,7 @@ public class AllowedRegistrationServiceImpl implements AllowedRegistrationServic
             throw new BusinessException("Nao foi possivel concluir cadastro com este convite");
         }
 
-        String username = resolveUsername(dto.username(), normalizedEmail);
+        String username = resolveUsername(dto.username());
 
         AppUser user = new AppUser();
         user.setEmail(normalizedEmail);
@@ -305,25 +360,44 @@ public class AllowedRegistrationServiceImpl implements AllowedRegistrationServic
         );
 
         auditLogService.log(
-                savedUser.getId(),
-                AuditActions.REGISTER_COMPLETED,
-                "users",
-                String.valueOf(savedUser.getId()),
-                null,
-                Map.of(
-                        "email", savedUser.getEmail(),
-                        "role", savedUser.getRole(),
-                        "status", savedUser.getStatus()
-                ),
+                AuditEventRequest.builder()
+                        .actorUserId(savedUser.getId())
+                        .tipoAuditoria(AuditScopeEnum.USERS)
+                        .modulo("Usuarios")
+                        .feature("Cadastro por convite")
+                        .entidadePrincipal("Usuario")
+                        .entidadeId(String.valueOf(savedUser.getId()))
+                        .acao("CRIAR")
+                        .resultado(AuditResultEnum.SUCESSO)
+                        .resumo("Cadastro concluido para " + savedUser.getFullName())
+                        .descricao("Usuario criado a partir de convite valido.")
+                        .depois(Map.of(
+                                "email", savedUser.getEmail(),
+                                "role", savedUser.getRole(),
+                                "status", savedUser.getStatus()
+                        ))
+                        .detalhesTecnicos(Map.of("inviteAction", AuditActions.REGISTER_COMPLETED))
+                        .build(),
                 request
         );
+        Map<String, Object> inviteAfter = snapshot(invite);
         auditLogService.log(
-                savedUser.getId(),
-                AuditActions.REGISTER_COMPLETED,
-                "allowed_registrations",
-                String.valueOf(invite.getId()),
-                inviteBefore,
-                snapshot(invite),
+                AuditEventRequest.builder()
+                        .actorUserId(savedUser.getId())
+                        .tipoAuditoria(AuditScopeEnum.USERS)
+                        .modulo("Usuarios")
+                        .feature("Cadastro por convite")
+                        .entidadePrincipal("Convite de cadastro")
+                        .entidadeId(String.valueOf(invite.getId()))
+                        .acao("ATUALIZAR")
+                        .resultado(AuditResultEnum.SUCESSO)
+                        .resumo("Convite marcado como utilizado para " + invite.getEmail())
+                        .descricao("Convite validado foi encerrado apos criacao do usuario.")
+                        .antes(inviteBefore)
+                        .depois(inviteAfter)
+                        .alteracoes(buildChanges(inviteBefore, inviteAfter))
+                        .detalhesTecnicos(Map.of("inviteAction", AuditActions.REGISTER_COMPLETED))
+                        .build(),
                 request
         );
 
@@ -419,6 +493,22 @@ public class AllowedRegistrationServiceImpl implements AllowedRegistrationServic
         return map;
     }
 
+    private List<AuditFieldChange> buildChanges(Map<String, Object> before, Map<String, Object> after) {
+        if (before == null || after == null) {
+            return List.of();
+        }
+        List<AuditFieldChange> changes = new ArrayList<>();
+        for (Map.Entry<String, Object> entry : before.entrySet()) {
+            Object oldValue = entry.getValue();
+            Object newValue = after.get(entry.getKey());
+            if ((oldValue == null && newValue == null) || (oldValue != null && oldValue.equals(newValue))) {
+                continue;
+            }
+            changes.add(new AuditFieldChange(entry.getKey(), oldValue, newValue, "EDITADO"));
+        }
+        return changes;
+    }
+
     private String normalizeEmail(String email) {
         if (email == null || email.isBlank()) {
             throw new BusinessException("E-mail e obrigatorio");
@@ -426,16 +516,14 @@ public class AllowedRegistrationServiceImpl implements AllowedRegistrationServic
         return email.trim().toLowerCase(Locale.ROOT);
     }
 
-    private String resolveUsername(String requestedUsername, String email) {
-        String base = requestedUsername;
-        if (base == null || base.isBlank()) {
-            int atIndex = email.indexOf('@');
-            base = atIndex > 0 ? email.substring(0, atIndex) : "user";
+    private String resolveUsername(String requestedUsername) {
+        if (requestedUsername == null || requestedUsername.isBlank()) {
+            throw new BusinessException("Username e obrigatorio");
         }
 
-        String normalizedBase = base.trim().toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9._-]", "");
+        String normalizedBase = requestedUsername.trim().toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9._-]", "");
         if (normalizedBase.isBlank()) {
-            normalizedBase = "user";
+            throw new BusinessException("Username invalido");
         }
         if (normalizedBase.length() > 100) {
             normalizedBase = normalizedBase.substring(0, 100);

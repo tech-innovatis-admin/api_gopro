@@ -3,6 +3,7 @@ package br.com.gopro.api.enums;
 public enum AuditScopeEnum {
     SYSTEM("system"),
     CONTRACTS("contracts"),
+    USERS("users"),
     PEOPLE_COMPANIES("people_companies");
 
     private final String prefix;
@@ -15,4 +16,3 @@ public enum AuditScopeEnum {
         return prefix;
     }
 }
-

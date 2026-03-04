@@ -8,7 +8,13 @@ import br.com.gopro.api.exception.BusinessException;
 import br.com.gopro.api.exception.ResourceNotFoundException;
 import br.com.gopro.api.mapper.ExpenseMapper;
 import br.com.gopro.api.model.Expense;
+import br.com.gopro.api.repository.BudgetCategoryRepository;
+import br.com.gopro.api.repository.BudgetItemRepository;
+import br.com.gopro.api.repository.DocumentRepository;
 import br.com.gopro.api.repository.ExpenseRepository;
+import br.com.gopro.api.repository.IncomeRepository;
+import br.com.gopro.api.repository.OrganizationRepository;
+import br.com.gopro.api.repository.PeopleRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -23,10 +29,17 @@ public class ExpenseServiceImpl implements ExpenseService {
 
     private final ExpenseRepository expenseRepository;
     private final ExpenseMapper expenseMapper;
+    private final BudgetItemRepository budgetItemRepository;
+    private final BudgetCategoryRepository budgetCategoryRepository;
+    private final IncomeRepository incomeRepository;
+    private final PeopleRepository peopleRepository;
+    private final OrganizationRepository organizationRepository;
+    private final DocumentRepository documentRepository;
 
     @Override
     public ExpenseResponseDTO createExpense(ExpenseRequestDTO dto) {
         Expense expense = expenseMapper.toEntity(dto);
+        applyReferencesOnCreate(expense, dto);
         expense.setIsActive(true);
         Expense saved = expenseRepository.save(expense);
         return expenseMapper.toDTO(saved);
@@ -72,6 +85,7 @@ public class ExpenseServiceImpl implements ExpenseService {
             throw new BusinessException("Nao e possivel atualizar uma despesa inativa");
         }
         expenseMapper.updateEntityFromDTO(dto, expense);
+        applyReferencesOnUpdate(expense, dto);
         Expense updated = expenseRepository.save(expense);
         return expenseMapper.toDTO(updated);
     }
@@ -105,6 +119,38 @@ public class ExpenseServiceImpl implements ExpenseService {
         }
         if (size <= 0 || size > 100) {
             throw new BusinessException("Tamanho da pagina deve estar entre 1 e 100");
+        }
+    }
+
+    private void applyReferencesOnCreate(Expense expense, ExpenseRequestDTO dto) {
+        expense.setBudgetItem(budgetItemRepository.getReferenceById(dto.budgetItemId()));
+        expense.setCategory(budgetCategoryRepository.getReferenceById(dto.categoryId()));
+        expense.setIncome(incomeRepository.getReferenceById(dto.incomeId()));
+        expense.setPerson(dto.personId() != null ? peopleRepository.getReferenceById(dto.personId()) : null);
+        expense.setOrganization(
+                dto.organizationId() != null ? organizationRepository.getReferenceById(dto.organizationId()) : null
+        );
+        expense.setDocument(dto.documentId() != null ? documentRepository.getReferenceById(dto.documentId()) : null);
+    }
+
+    private void applyReferencesOnUpdate(Expense expense, ExpenseUpdateDTO dto) {
+        if (dto.budgetItemId() != null) {
+            expense.setBudgetItem(budgetItemRepository.getReferenceById(dto.budgetItemId()));
+        }
+        if (dto.categoryId() != null) {
+            expense.setCategory(budgetCategoryRepository.getReferenceById(dto.categoryId()));
+        }
+        if (dto.incomeId() != null) {
+            expense.setIncome(incomeRepository.getReferenceById(dto.incomeId()));
+        }
+        if (dto.personId() != null) {
+            expense.setPerson(peopleRepository.getReferenceById(dto.personId()));
+        }
+        if (dto.organizationId() != null) {
+            expense.setOrganization(organizationRepository.getReferenceById(dto.organizationId()));
+        }
+        if (dto.documentId() != null) {
+            expense.setDocument(documentRepository.getReferenceById(dto.documentId()));
         }
     }
 }
