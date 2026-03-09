@@ -26,6 +26,7 @@ import br.com.gopro.api.repository.ProjectRepository;
 import br.com.gopro.api.repository.PublicAgencyRepository;
 import br.com.gopro.api.repository.SecretaryRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -46,6 +47,8 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -63,6 +66,9 @@ public class ProjectServiceImpl implements ProjectService {
     private final PeopleRepository peopleRepository;
     private final ProjectPeopleRepository projectPeopleRepository;
     private static final Locale PT_BR = new Locale("pt", "BR");
+    private static final int CODE_SEQUENCE_DIGITS = 4;
+    private static final int MAX_CODE_GENERATION_ATTEMPTS = 5;
+    private static final Pattern UF_PATTERN = Pattern.compile("^[A-Z]{2}$");
     @Value("${app.project.max-contract-value:9999999999999.99}")
     private BigDecimal maxContractValue;
 
@@ -71,21 +77,36 @@ public class ProjectServiceImpl implements ProjectService {
     public ProjectResponseDTO createProject(ProjectRequestDTO dto) {
         validateContractValue(dto.contractValue());
         validateReferencesForCreate(dto);
+        String normalizedUf = normalizeUf(dto.state());
 
-        Project project = projectMapper.toEntity(dto);
-        project.setIsActive(true);
-        if (project.getTotalReceived() == null) {
-            project.setTotalReceived(BigDecimal.ZERO);
+        for (int attempt = 0; attempt < MAX_CODE_GENERATION_ATTEMPTS; attempt++) {
+            Project project = projectMapper.toEntity(dto);
+            project.setState(normalizedUf);
+            project.setCode(generateContractCode(project.getProjectType(), project.getProjectGovIf(), normalizedUf));
+            project.setIsActive(true);
+            if (project.getTotalReceived() == null) {
+                project.setTotalReceived(BigDecimal.ZERO);
+            }
+            if (project.getTotalExpenses() == null) {
+                project.setTotalExpenses(BigDecimal.ZERO);
+            }
+            if (project.getSaldo() == null) {
+                project.setSaldo(BigDecimal.ZERO);
+            }
+
+            try {
+                Project saved = projectRepository.saveAndFlush(project);
+                ensureCoordinatorLinkedToProjectPeople(saved, dto.createdBy(), null);
+                return projectMapper.toDTO(saved);
+            } catch (DataIntegrityViolationException exception) {
+                if (isProjectCodeConflict(exception) && attempt < MAX_CODE_GENERATION_ATTEMPTS - 1) {
+                    continue;
+                }
+                throw exception;
+            }
         }
-        if (project.getTotalExpenses() == null) {
-            project.setTotalExpenses(BigDecimal.ZERO);
-        }
-        if (project.getSaldo() == null) {
-            project.setSaldo(BigDecimal.ZERO);
-        }
-        Project saved = projectRepository.save(project);
-        ensureCoordinatorLinkedToProjectPeople(saved, dto.createdBy(), null);
-        return projectMapper.toDTO(saved);
+
+        throw new BusinessException("Nao foi possivel gerar codigo unico para o contrato");
     }
 
     @Override
@@ -359,6 +380,93 @@ public class ProjectServiceImpl implements ProjectService {
         }
     }
 
+    private String generateContractCode(ProjectTypeEnum projectType, ProjectGovIfEnum projectGovIf, String state) {
+        String typeCode = toCodeType(projectType);
+        String govIfCode = toCodeGovIf(projectGovIf);
+        String uf = normalizeUf(state);
+        int year = LocalDate.now().getYear();
+        String prefix = typeCode + govIfCode + "/" + uf + "-" + year;
+        int sequence = resolveNextSequence(prefix);
+
+        return prefix + formatSequence(sequence);
+    }
+
+    private String toCodeType(ProjectTypeEnum projectType) {
+        if (projectType == null) {
+            throw new BusinessException("Tipo do contrato e obrigatorio");
+        }
+        return switch (projectType) {
+            case PROJETO -> "PROJ";
+            case PRODUTO -> "PROD";
+        };
+    }
+
+    private String toCodeGovIf(ProjectGovIfEnum projectGovIf) {
+        if (projectGovIf == null) {
+            throw new BusinessException("Unidade GOV/IF e obrigatoria");
+        }
+        return switch (projectGovIf) {
+            case GOV -> "GOV";
+            case IF -> "IF";
+        };
+    }
+
+    private String normalizeUf(String state) {
+        String uf = trimToNull(state);
+        if (uf == null) {
+            throw new BusinessException("UF e obrigatoria");
+        }
+
+        String normalizedUf = stripAccents(uf)
+                .toUpperCase(Locale.ROOT)
+                .replaceAll("[^A-Z]", "");
+
+        if (!UF_PATTERN.matcher(normalizedUf).matches()) {
+            throw new BusinessException("UF deve possuir 2 letras (ex: SP)");
+        }
+        return normalizedUf;
+    }
+
+    private int resolveNextSequence(String codePrefix) {
+        Pattern pattern = Pattern.compile("^" + Pattern.quote(codePrefix) + "(\\d{" + CODE_SEQUENCE_DIGITS + "})$");
+
+        int currentMax = projectRepository.findCodesByPrefix(codePrefix).stream()
+                .map(pattern::matcher)
+                .filter(Matcher::matches)
+                .mapToInt(matcher -> Integer.parseInt(matcher.group(1)))
+                .max()
+                .orElse(0);
+
+        int maxSequence = (int) Math.pow(10, CODE_SEQUENCE_DIGITS) - 1;
+        int next = currentMax + 1;
+        if (next > maxSequence) {
+            throw new BusinessException("Limite de sequencial anual atingido para tipo e UF informados");
+        }
+        return next;
+    }
+
+    private String formatSequence(int sequence) {
+        return String.format(Locale.ROOT, "%0" + CODE_SEQUENCE_DIGITS + "d", sequence);
+    }
+
+    private boolean isProjectCodeConflict(DataIntegrityViolationException exception) {
+        String details = dataIntegrityDetails(exception);
+        return details.contains("projects_code_key")
+                || details.contains("project_code_key")
+                || (details.contains("duplicate key") && details.contains("code"))
+                || (details.contains("unique") && details.contains("code"));
+    }
+
+    private String dataIntegrityDetails(DataIntegrityViolationException exception) {
+        if (exception.getMostSpecificCause() != null && exception.getMostSpecificCause().getMessage() != null) {
+            return exception.getMostSpecificCause().getMessage().toLowerCase(Locale.ROOT);
+        }
+        if (exception.getMessage() != null) {
+            return exception.getMessage().toLowerCase(Locale.ROOT);
+        }
+        return "";
+    }
+
     private boolean monthMatches(Project project, int month) {
         LocalDate referenceDate = getReferenceDate(project);
         return referenceDate != null && referenceDate.getMonthValue() == month;
@@ -466,9 +574,12 @@ public class ProjectServiceImpl implements ProjectService {
         if (value == null) {
             return "";
         }
-        String normalized = Normalizer.normalize(value, Normalizer.Form.NFD)
+        return stripAccents(value).toLowerCase(PT_BR).trim();
+    }
+
+    private String stripAccents(String value) {
+        return Normalizer.normalize(value, Normalizer.Form.NFD)
                 .replaceAll("\\p{M}", "");
-        return normalized.toLowerCase(PT_BR).trim();
     }
 
     private String trimToNull(String value) {

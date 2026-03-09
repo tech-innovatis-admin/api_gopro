@@ -7,7 +7,9 @@ import br.com.gopro.api.dtos.AuthLoginResponseDTO;
 import br.com.gopro.api.dtos.AuthUserResponseDTO;
 import br.com.gopro.api.enums.AuditResultEnum;
 import br.com.gopro.api.enums.AuditScopeEnum;
+import br.com.gopro.api.enums.DocumentOwnerTypeEnum;
 import br.com.gopro.api.enums.UserStatusEnum;
+import br.com.gopro.api.exception.BusinessException;
 import br.com.gopro.api.exception.ResourceNotFoundException;
 import br.com.gopro.api.exception.UnauthorizedException;
 import br.com.gopro.api.model.AppUser;
@@ -18,6 +20,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDateTime;
 import java.util.Map;
@@ -27,12 +30,14 @@ import java.util.Map;
 public class AuthServiceImpl implements AuthService {
 
     private static final String GENERIC_INVALID_CREDENTIALS = "Credenciais invalidas";
+    private static final long MAX_AVATAR_SIZE_BYTES = 20L * 1024L * 1024L;
 
     private final AppUserRepository appUserRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final AuditLogService auditLogService;
     private final RateLimitService rateLimitService;
+    private final DocumentService documentService;
 
     @Value("${app.auth.rate-limit.login.max-attempts:8}")
     private int loginRateLimitMaxAttempts;
@@ -135,6 +140,25 @@ public class AuthServiceImpl implements AuthService {
         return toAuthUserDTO(user);
     }
 
+    @Override
+    public AuthUserResponseDTO updateMyAvatar(AuthenticatedUserPrincipal principal, MultipartFile file) {
+        validateAvatarFile(file);
+
+        AppUser user = appUserRepository.findById(principal.id())
+                .orElseThrow(() -> new ResourceNotFoundException("Usuario nao encontrado"));
+
+        String avatarDocumentId = documentService
+                .upload(file, DocumentOwnerTypeEnum.USER, user.getId(), "FOTO_PERFIL", principal.id())
+                .id()
+                .toString();
+
+        user.setAvatarUrl(avatarDocumentId);
+        user.setUpdatedBy(principal.id());
+
+        AppUser savedUser = appUserRepository.save(user);
+        return toAuthUserDTO(savedUser);
+    }
+
     private AuthUserResponseDTO toAuthUserDTO(AppUser user) {
         return new AuthUserResponseDTO(
                 user.getId(),
@@ -142,8 +166,25 @@ public class AuthServiceImpl implements AuthService {
                 user.getUsername(),
                 user.getFullName(),
                 user.getRole(),
-                user.getStatus()
+                user.getStatus(),
+                user.getAvatarUrl(),
+                user.getLastLoginAt()
         );
+    }
+
+    private void validateAvatarFile(MultipartFile file) {
+        if (file == null || file.isEmpty()) {
+            throw new BusinessException("Arquivo de foto obrigatorio");
+        }
+
+        if (file.getSize() > MAX_AVATAR_SIZE_BYTES) {
+            throw new BusinessException("A foto excede o tamanho maximo de 20MB");
+        }
+
+        String contentType = file.getContentType();
+        if (contentType == null || !contentType.toLowerCase().startsWith("image/")) {
+            throw new BusinessException("A foto deve ser uma imagem valida");
+        }
     }
 
     private String extractClientIp(HttpServletRequest request) {

@@ -350,7 +350,9 @@ public class AllowedRegistrationServiceImpl implements AllowedRegistrationServic
                 savedUser.getUsername(),
                 savedUser.getFullName(),
                 savedUser.getRole(),
-                savedUser.getStatus()
+                savedUser.getStatus(),
+                savedUser.getAvatarUrl(),
+                savedUser.getLastLoginAt()
         );
         AuthLoginResponseDTO auth = new AuthLoginResponseDTO(
                 accessToken,

@@ -13,7 +13,7 @@ import java.time.LocalDate;
 
 public record ProjectRequestDTO(
         @NotBlank(message = "Nome e obrigatorio") String name,
-        @NotBlank(message = "Codigo e obrigatorio") String code,
+        String code,
         @NotNull(message = "Status e obrigatorio") ProjectStatusEnum projectStatus,
         String areaSegmento,
         @NotBlank(message = "Objeto e obrigatorio") String object,
@@ -22,8 +22,8 @@ public record ProjectRequestDTO(
         @NotNull(message = "Cliente primario e obrigatorio") Long primaryClientId,
         Long secundaryClientId,
         Long cordinatorId,
-        ProjectGovIfEnum projectGovIf,
-        ProjectTypeEnum projectType,
+        @NotNull(message = "Unidade GOV/IF e obrigatoria") ProjectGovIfEnum projectGovIf,
+        @NotNull(message = "Tipo do contrato e obrigatorio") ProjectTypeEnum projectType,
         @DecimalMin(value = "0.01", message = "Valor do projeto deve ser maior que zero")
         @Digits(
                 integer = 13,
@@ -36,7 +36,7 @@ public record ProjectRequestDTO(
         LocalDate openingDate,
         LocalDate closingDate,
         String city,
-        String state,
+        @NotBlank(message = "UF e obrigatoria") String state,
         String executionLocation,
         Long createdBy
 ) {}

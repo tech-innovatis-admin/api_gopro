@@ -16,5 +16,6 @@ public enum DocumentOwnerTypeEnum {
     SECRETARY,
     PEOPLE,
     ORGANIZATION,
-    COMPANY
+    COMPANY,
+    USER
 }

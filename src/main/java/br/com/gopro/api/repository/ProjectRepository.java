@@ -11,6 +11,8 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -21,6 +23,36 @@ public interface ProjectRepository extends JpaRepository<Project, Long> {
     Page<Project> findByIsActiveTrue(Pageable pageable);
     List<Project> findByIsActiveTrue();
     Optional<Project> findByCode(String code);
+    @Query("""
+    select p.code
+    from Project p
+    where p.code like concat(:prefix, '%')
+""")
+    List<String> findCodesByPrefix(@Param("prefix") String prefix);
+
+    @Query("""
+    select p
+    from Project p
+    where p.isActive = true
+      and p.createdAt is not null
+      and p.createdAt >= :fromDate
+    order by p.createdAt desc, p.id desc
+""")
+    List<Project> findRecentCreatedProjects(@Param("fromDate") LocalDateTime fromDate, Pageable pageable);
+
+    @Query("""
+    select p
+    from Project p
+    where p.isActive = true
+      and p.endDate is not null
+      and p.endDate between :startDate and :endDate
+    order by p.endDate asc, p.id asc
+""")
+    List<Project> findExpiringProjectsBetween(
+            @Param("startDate") LocalDate startDate,
+            @Param("endDate") LocalDate endDate,
+            Pageable pageable
+    );
 
     @Query("""
     select
