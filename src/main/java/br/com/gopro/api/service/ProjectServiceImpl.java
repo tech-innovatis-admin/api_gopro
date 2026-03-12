@@ -31,6 +31,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -112,7 +113,11 @@ public class ProjectServiceImpl implements ProjectService {
     @Override
     public PageResponseDTO<ProjectResponseDTO> listAllProjects(int page, int size) {
         validatePage(page, size);
-        Pageable pageable = PageRequest.of(page, size);
+        Pageable pageable = PageRequest.of(
+                page,
+                size,
+                Sort.by(Sort.Direction.DESC, "createdAt").and(Sort.by(Sort.Direction.DESC, "id"))
+        );
         Page<Project> pageResult = projectRepository.findByIsActiveTrue(pageable);
         List<ProjectResponseDTO> content = pageResult.getContent().stream()
                 .map(projectMapper::toDTO)
