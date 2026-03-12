@@ -2,16 +2,25 @@ package br.com.gopro.api.service.audit;
 
 import org.springframework.stereotype.Component;
 
+import java.util.ArrayList;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.time.temporal.Temporal;
 import java.util.Collection;
+import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 @Component
 public class AuditSnapshotExtractor {
+    private static final Set<String> INTERNAL_FIELD_NAMES = Set.of(
+            "hibernateLazyInitializer",
+            "handler",
+            "$$_hibernate_interceptor"
+    );
 
     public Map<String, Object> extract(Object source) {
         if (source == null) {
@@ -27,10 +36,7 @@ public class AuditSnapshotExtractor {
         }
 
         Map<String, Object> snapshot = new LinkedHashMap<>();
-        for (Field field : source.getClass().getDeclaredFields()) {
-            if (Modifier.isStatic(field.getModifiers())) {
-                continue;
-            }
+        for (Field field : collectSnapshotFields(source.getClass())) {
             field.setAccessible(true);
             try {
                 Object value = field.get(source);
@@ -64,7 +70,45 @@ public class AuditSnapshotExtractor {
         if (nestedId != null) {
             return nestedId;
         }
-        return String.valueOf(value);
+        return safeToString(value);
+    }
+
+    private List<Field> collectSnapshotFields(Class<?> sourceType) {
+        List<Field> fields = new ArrayList<>();
+        Set<String> seenNames = new LinkedHashSet<>();
+
+        Class<?> current = sourceType;
+        while (current != null && current != Object.class) {
+            for (Field field : current.getDeclaredFields()) {
+                if (shouldIgnoreField(field) || !seenNames.add(field.getName())) {
+                    continue;
+                }
+                fields.add(field);
+            }
+            current = current.getSuperclass();
+        }
+
+        return fields;
+    }
+
+    private boolean shouldIgnoreField(Field field) {
+        if (Modifier.isStatic(field.getModifiers()) || field.isSynthetic()) {
+            return true;
+        }
+
+        String name = field.getName();
+        return INTERNAL_FIELD_NAMES.contains(name)
+                || name.startsWith("CGLIB$")
+                || name.startsWith("$$")
+                || name.contains("hibernate");
+    }
+
+    private String safeToString(Object value) {
+        try {
+            return String.valueOf(value);
+        } catch (Exception ignored) {
+            return value.getClass().getSimpleName();
+        }
     }
 
     private Object extractNestedId(Object value) {
@@ -83,4 +127,3 @@ public class AuditSnapshotExtractor {
         return null;
     }
 }
-

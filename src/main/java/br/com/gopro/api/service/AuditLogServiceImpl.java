@@ -7,8 +7,10 @@ import br.com.gopro.api.enums.AuditScopeEnum;
 import br.com.gopro.api.exception.BusinessException;
 import br.com.gopro.api.model.AppUser;
 import br.com.gopro.api.model.AuditLog;
+import br.com.gopro.api.model.Project;
 import br.com.gopro.api.repository.AppUserRepository;
 import br.com.gopro.api.repository.AuditLogRepository;
+import br.com.gopro.api.repository.ProjectRepository;
 import br.com.gopro.api.service.audit.*;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -25,11 +27,17 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
+
+import static software.amazon.awssdk.utils.StringUtils.trimToNull;
 
 @Service
 @RequiredArgsConstructor
@@ -37,10 +45,12 @@ public class AuditLogServiceImpl implements AuditLogService {
 
     private final AuditLogRepository auditLogRepository;
     private final AppUserRepository appUserRepository;
+    private final ProjectRepository projectRepository;
     private final ObjectMapper objectMapper;
     private final AuditSensitiveDataMasker sensitiveDataMasker;
     private final AuditDeltaCalculator deltaCalculator;
     private final AuditMessageFormatter auditMessageFormatter;
+    private final ContractAuditChangeEnricher contractAuditChangeEnricher;
 
     @Override
     public void log(AuditEventRequest event, HttpServletRequest request) {
@@ -54,20 +64,26 @@ public class AuditLogServiceImpl implements AuditLogService {
 
         JsonNode beforeNode = sensitiveDataMasker.toMaskedNode(event.getAntes());
         JsonNode afterNode = sensitiveDataMasker.toMaskedNode(event.getDepois());
+        boolean skipAutomaticDelta = shouldSkipAutomaticDelta(event.getDetalhesTecnicos());
 
         if ("ATUALIZAR".equals(acao)) {
-            if (beforeNode == null || beforeNode.isNull()) {
-                beforeNode = objectMapper.createObjectNode();
-            }
-            if (afterNode == null || afterNode.isNull()) {
-                afterNode = objectMapper.createObjectNode();
+            if (skipAutomaticDelta) {
+                beforeNode = sanitizeManualDeltaSnapshot(beforeNode);
+                afterNode = sanitizeManualDeltaSnapshot(afterNode);
+            } else {
+                if (beforeNode == null || beforeNode.isNull()) {
+                    beforeNode = objectMapper.createObjectNode();
+                }
+                if (afterNode == null || afterNode.isNull()) {
+                    afterNode = objectMapper.createObjectNode();
+                }
             }
         }
 
         List<AuditFieldChange> alteracoes = event.getAlteracoes() != null
                 ? event.getAlteracoes()
                 : List.of();
-        if ("ATUALIZAR".equals(acao) && alteracoes.isEmpty()) {
+        if ("ATUALIZAR".equals(acao) && alteracoes.isEmpty() && !skipAutomaticDelta) {
             alteracoes = deltaCalculator.calculate(beforeNode, afterNode);
         }
         alteracoes = sensitiveDataMasker.maskChanges(alteracoes);
@@ -134,10 +150,10 @@ public class AuditLogServiceImpl implements AuditLogService {
             int size
     ) {
         if (page < 0) {
-            throw new BusinessException("Pagina deve ser maior ou igual a 0");
+            throw new BusinessException("Página deve ser maior ou igual a 0");
         }
         if (size <= 0 || size > 100) {
-            throw new BusinessException("Tamanho da pagina deve estar entre 1 e 100");
+            throw new BusinessException("Tamanho da página deve estar entre 1 e 100");
         }
 
         Specification<AuditLog> specification = Specification.where(null);
@@ -209,8 +225,37 @@ public class AuditLogServiceImpl implements AuditLogService {
         Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "eventAt").and(Sort.by(Sort.Direction.DESC, "createdAt")));
         Page<AuditLog> logs = auditLogRepository.findAll(specification, pageable);
 
+        Map<Long, Long> contractIdByAuditId = new HashMap<>();
+        Set<Long> contractIds = new HashSet<>();
+        for (AuditLog log : logs.getContent()) {
+            Long contractIdValue = resolveContractId(log);
+            if (contractIdValue == null) {
+                continue;
+            }
+
+            if (log.getId() != null) {
+                contractIdByAuditId.put(log.getId(), contractIdValue);
+            }
+            contractIds.add(contractIdValue);
+        }
+
+        Map<Long, Project> projectsByContractId = contractIds.isEmpty()
+                ? Map.of()
+                : projectRepository.findAllById(contractIds).stream()
+                .collect(Collectors.toMap(Project::getId, project -> project));
+
+        Map<Long, String> enrichedChangesByAuditId = contractAuditChangeEnricher.enrich(
+                logs.getContent(),
+                projectsByContractId
+        );
+
         List<AuditLogResponseDTO> content = logs.getContent().stream()
-                .map(this::toDTO)
+                .map(log -> {
+                    Long contractIdValue = log.getId() == null ? null : contractIdByAuditId.get(log.getId());
+                    Project contractProject = contractIdValue == null ? null : projectsByContractId.get(contractIdValue);
+                    String alteracoesJson = log.getId() == null ? null : enrichedChangesByAuditId.get(log.getId());
+                    return toDTO(log, contractIdValue, contractProject, alteracoesJson);
+                })
                 .toList();
 
         return new PageResponseDTO<>(
@@ -285,8 +330,17 @@ public class AuditLogServiceImpl implements AuditLogService {
         };
     }
 
-    private AuditLogResponseDTO toDTO(AuditLog log) {
+    private AuditLogResponseDTO toDTO(AuditLog log, Long contractId, Project contractProject, String enrichedChangesJson) {
         AppUser usuario = log.getActorUser();
+        String contractCode = contractProject == null ? null : trimToNull(contractProject.getCode());
+        String contractName = contractProject == null ? null : trimToNull(contractProject.getName());
+
+        String resumo = auditMessageFormatter.enrichSummaryWithContractCode(
+                log.getResumo(),
+                contractId,
+                contractCode
+        );
+
         return new AuditLogResponseDTO(
                 log.getId(),
                 log.getAuditId(),
@@ -297,7 +351,7 @@ public class AuditLogServiceImpl implements AuditLogService {
                 log.getEntidadePrincipal(),
                 log.getAba(),
                 log.getSubsecao(),
-                log.getResumo(),
+                resumo,
                 log.getDescricao(),
                 log.getResultado(),
                 log.getCorrelacaoId(),
@@ -305,17 +359,88 @@ public class AuditLogServiceImpl implements AuditLogService {
                 usuario != null ? usuario.getFullName() : null,
                 usuario != null ? usuario.getEmail() : null,
                 usuario != null && usuario.getRole() != null ? usuario.getRole().name() : null,
-                log.getAlteracoesJson(),
+                firstNonBlank(enrichedChangesJson, log.getAlteracoesJson()),
                 log.getDetalhesTecnicosJson(),
                 log.getAction(),
                 log.getEntityType(),
                 log.getEntityId(),
+                contractId,
+                contractCode,
+                contractName,
                 log.getBeforeJson(),
                 log.getAfterJson(),
                 log.getIp(),
                 log.getUserAgent(),
                 log.getCreatedAt()
         );
+    }
+
+    private Long resolveContractId(AuditLog log) {
+        if (log == null || !isContractAudit(log)) {
+            return null;
+        }
+
+        JsonNode detailsNode = parseJsonNode(log.getDetalhesTecnicosJson());
+        Long contractId = readPositiveLong(detailsNode, "contractId");
+        if (contractId != null) {
+            return contractId;
+        }
+
+        Long projectId = readPositiveLong(detailsNode, "projectId");
+        if (projectId != null) {
+            return projectId;
+        }
+
+        return parsePositiveLong(log.getEntityId());
+    }
+
+    private boolean isContractAudit(AuditLog log) {
+        if (log.getTipoAuditoria() == AuditScopeEnum.CONTRACTS) {
+            return true;
+        }
+
+        String entityType = safeLower(log.getEntityType());
+        String entityName = safeLower(log.getEntidadePrincipal());
+
+        return entityType.contains("project")
+                || entityType.contains("contract")
+                || entityType.contains("contrato")
+                || entityName.contains("project")
+                || entityName.contains("projeto")
+                || entityName.contains("contrato");
+    }
+
+    private Long readPositiveLong(JsonNode root, String field) {
+        if (root == null || field == null || field.isBlank()) {
+            return null;
+        }
+        JsonNode node = root.get(field);
+        if (node == null || node.isNull()) {
+            return null;
+        }
+
+        if (node.isIntegralNumber()) {
+            long value = node.longValue();
+            return value > 0 ? value : null;
+        }
+
+        if (node.isTextual()) {
+            return parsePositiveLong(node.asText());
+        }
+
+        return null;
+    }
+
+    private JsonNode parseJsonNode(String json) {
+        String normalized = trimToNull(json);
+        if (normalized == null) {
+            return null;
+        }
+        try {
+            return objectMapper.readTree(normalized);
+        } catch (Exception ignored) {
+            return null;
+        }
     }
 
     private AuditScopeEnum resolveScope(AuditEventRequest event) {
@@ -360,7 +485,7 @@ public class AuditLogServiceImpl implements AuditLogService {
     private String defaultModulo(AuditScopeEnum scope) {
         return switch (scope) {
             case CONTRACTS -> "Contratos";
-            case USERS -> "Usuarios";
+            case USERS -> "Usuários";
             case PEOPLE_COMPANIES -> "Pessoas e Empresas";
             case SYSTEM -> "Sistema";
         };
@@ -368,17 +493,17 @@ public class AuditLogServiceImpl implements AuditLogService {
 
     private String defaultFeature(AuditScopeEnum scope) {
         return switch (scope) {
-            case CONTRACTS -> "Gestao de contratos";
-            case USERS -> "Gestao de usuarios";
-            case PEOPLE_COMPANIES -> "Gestao de pessoas e empresas";
-            case SYSTEM -> "Operacoes do sistema";
+            case CONTRACTS -> "Gestão de contratos";
+            case USERS -> "Gestão de usuários";
+            case PEOPLE_COMPANIES -> "Gestão de pessoas e empresas";
+            case SYSTEM -> "Operações do sistema";
         };
     }
 
     private String defaultEntidade(AuditScopeEnum scope) {
         return switch (scope) {
             case CONTRACTS -> "Contrato";
-            case USERS -> "Usuario";
+            case USERS -> "Usuário";
             case PEOPLE_COMPANIES -> "Pessoa/Empresa";
             case SYSTEM -> "Sistema";
         };
@@ -478,6 +603,53 @@ public class AuditLogServiceImpl implements AuditLogService {
             return null;
         }
         return value.trim();
+    }
+
+    private boolean shouldSkipAutomaticDelta(Object details) {
+        if (!(details instanceof Map<?, ?> map)) {
+            return false;
+        }
+        Object candidate = map.get("skipAutomaticDelta");
+        if (candidate instanceof Boolean value) {
+            return value;
+        }
+        if (candidate instanceof String text) {
+            return Boolean.parseBoolean(text.trim());
+        }
+        return false;
+    }
+
+    private JsonNode sanitizeManualDeltaSnapshot(JsonNode snapshot) {
+        if (snapshot == null || snapshot.isNull()) {
+            return null;
+        }
+        if (!snapshot.isObject()) {
+            return snapshot;
+        }
+        if (snapshot.isEmpty() || looksLikeTechnicalPayload(snapshot)) {
+            return null;
+        }
+        return snapshot;
+    }
+
+    private boolean looksLikeTechnicalPayload(JsonNode snapshot) {
+        return snapshot.hasNonNull("resource")
+                && snapshot.hasNonNull("path")
+                && snapshot.hasNonNull("method")
+                && snapshot.hasNonNull("actionLabel");
+    }
+
+    private Long parsePositiveLong(String rawValue) {
+        String normalized = trimToNull(rawValue);
+        if (normalized == null) {
+            return null;
+        }
+        try {
+            long parsed = Long.parseLong(normalized);
+            return parsed > 0 ? parsed : null;
+        } catch (NumberFormatException ignored) {
+            return null;
+        }
     }
 
     private String safeLower(String value) {
