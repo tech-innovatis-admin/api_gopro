@@ -59,25 +59,46 @@ class RbacControllerSecurityTest {
 
     @Test
     @WithMockUser(roles = "SUPERADMIN")
-    void superadmin_shouldAccessAdminAuditEndpoint() throws Exception {
+    void generalAdminAuditEndpoint_shouldNotExist() throws Exception {
+        mockMvc.perform(get("/admin/audit"))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    @WithMockUser(roles = "ADMIN")
+    void admin_shouldAlsoReceiveNotFoundForRemovedGeneralAuditEndpoint() throws Exception {
+        mockMvc.perform(get("/admin/audit"))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    @WithMockUser(roles = "ADMIN")
+    void admin_shouldAccessContractAuditEndpointWhenContractIdIsProvided() throws Exception {
         when(auditLogService.list(any(), any(), any(), any(), any(), any(), any(), any(), any(), anyInt(), anyInt()))
                 .thenReturn(new PageResponseDTO<>(List.of(), 0, 20, 0, 0, true, true));
 
-        mockMvc.perform(get("/admin/audit"))
+        mockMvc.perform(get("/audit-log").param("contractId", "42"))
                 .andExpect(status().isOk());
     }
 
     @Test
     @WithMockUser(roles = "ADMIN")
-    void admin_shouldNotAccessAdminAuditEndpoint() throws Exception {
-        mockMvc.perform(get("/admin/audit"))
+    void admin_shouldNotAccessContractAuditEndpointWithoutContractId() throws Exception {
+        mockMvc.perform(get("/audit-log"))
                 .andExpect(status().isForbidden());
     }
 
     @Test
     @WithMockUser(roles = "ANALISTA")
-    void analista_shouldNotAccessAdminAuditEndpoint() throws Exception {
+    void analista_shouldReceiveNotFoundForRemovedGeneralAuditEndpoint() throws Exception {
         mockMvc.perform(get("/admin/audit"))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    @WithMockUser(roles = "ANALISTA")
+    void analista_shouldNotAccessContractAuditEndpoint() throws Exception {
+        mockMvc.perform(get("/audit-log").param("contractId", "42"))
                 .andExpect(status().isForbidden());
     }
 

@@ -2,6 +2,7 @@ package br.com.gopro.api.config;
 
 import br.com.gopro.api.repository.*;
 import br.com.gopro.api.service.AuditLogService;
+import br.com.gopro.api.service.audit.ContractAuditDeltaResolver;
 import br.com.gopro.api.service.audit.AuditSnapshotExtractor;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.context.annotation.Bean;
@@ -78,8 +79,7 @@ public class SecurityConfig {
                         .requestMatchers("/register/**").permitAll()
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers("/admin/allowed-registrations/**").hasRole("SUPERADMIN")
-                        .requestMatchers("/admin/audit/**").hasRole("SUPERADMIN")
-                        .requestMatchers("/audit-log/**").hasRole("SUPERADMIN")
+                        .requestMatchers("/audit-log/**").hasAnyRole("SUPERADMIN", "ADMIN")
                         .requestMatchers("/admin/users/**").hasAnyRole("SUPERADMIN", "ADMIN")
                         .anyRequest().authenticated()
                 )
@@ -99,6 +99,7 @@ public class SecurityConfig {
             AuditLogService auditLogService,
             ObjectMapper objectMapper,
             AuditSnapshotExtractor auditSnapshotExtractor,
+            ContractAuditDeltaResolver contractAuditDeltaResolver,
             ProjectRepository projectRepository,
             BudgetCategoryRepository budgetCategoryRepository,
             BudgetItemRepository budgetItemRepository,
@@ -117,6 +118,7 @@ public class SecurityConfig {
                 auditLogService,
                 objectMapper,
                 auditSnapshotExtractor,
+                contractAuditDeltaResolver,
                 projectRepository,
                 budgetCategoryRepository,
                 budgetItemRepository,

@@ -59,6 +59,9 @@ public class AuditLogServiceImpl implements AuditLogService {
         }
 
         AuditScopeEnum scope = resolveScope(event);
+        if (scope != AuditScopeEnum.CONTRACTS) {
+            return;
+        }
         String acao = normalizeAction(event.getAcao());
         String correlationId = AuditCorrelationIdResolver.resolve(request, event.getCorrelacaoId());
 

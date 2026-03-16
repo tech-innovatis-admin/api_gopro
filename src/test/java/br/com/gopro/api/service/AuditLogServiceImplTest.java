@@ -2,7 +2,6 @@ package br.com.gopro.api.service;
 
 import br.com.gopro.api.dtos.AuditLogResponseDTO;
 import br.com.gopro.api.dtos.PageResponseDTO;
-import br.com.gopro.api.enums.AuditResultEnum;
 import br.com.gopro.api.enums.AuditScopeEnum;
 import br.com.gopro.api.model.AppUser;
 import br.com.gopro.api.model.AuditLog;
@@ -36,6 +35,7 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -71,7 +71,7 @@ class AuditLogServiceImplTest {
     }
 
     @Test
-    void log_shouldPersistCentralizedNarrativeForAdministrativeUserUpdate() {
+    void log_shouldIgnoreNonContractAuditScopes() {
         AppUser actor = new AppUser();
         actor.setId(7L);
         actor.setEmail("admin@empresa.com");
@@ -84,17 +84,15 @@ class AuditLogServiceImplTest {
         when(request.getHeader("X-Request-Id")).thenReturn("req-123");
         when(request.getRequestURI()).thenReturn("/admin/users/7");
         when(request.getMethod()).thenReturn("PATCH");
-        when(auditLogRepository.save(any(AuditLog.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         AuditEventRequest event = AuditEventRequest.builder()
                 .actorUserId(7L)
                 .tipoAuditoria(AuditScopeEnum.USERS)
-                .modulo("Usuários")
-                .feature("Gestão de usuários")
+                .modulo("Usuarios")
+                .feature("Gestao de usuarios")
                 .entidadePrincipal("Usuario")
                 .entidadeId("7")
                 .acao("ATUALIZAR")
-                .resultado(AuditResultEnum.SUCESSO)
                 .antes(Map.of("fullName", "Admin", "role", "ANALISTA"))
                 .depois(Map.of("fullName", "Admin", "role", "ADMIN"))
                 .alteracoes(List.of(new AuditFieldChange("role", "ANALISTA", "ADMIN", "EDITADO")))
@@ -103,15 +101,7 @@ class AuditLogServiceImplTest {
 
         service.log(event, request);
 
-        ArgumentCaptor<AuditLog> captor = ArgumentCaptor.forClass(AuditLog.class);
-        verify(auditLogRepository).save(captor.capture());
-        AuditLog saved = captor.getValue();
-
-        assertThat(saved.getResumo()).isEqualTo("Usuário Admin: perfil alterado");
-        assertThat(saved.getDescricao()).isEqualTo("Perfil de acesso do usuário atualizado.");
-        assertThat(saved.getAlteracoesJson()).contains("EDITADO");
-        assertThat(saved.getIp()).isEqualTo("10.0.0.1");
-        assertThat(saved.getUserAgent()).isEqualTo("JUnit");
+        verify(auditLogRepository, never()).save(any(AuditLog.class));
     }
 
     @Test
@@ -323,7 +313,7 @@ class AuditLogServiceImplTest {
         when(projectRepository.findAllById(org.mockito.ArgumentMatchers.<Iterable<Long>>any()))
                 .thenReturn(List.of());
         when(contractAuditChangeEnricher.enrich(any(), any()))
-                .thenReturn(Map.of(2L, "[{\"caminho\":\"Pessoa\",\"de\":\"44\",\"para\":\"52\",\"deLabel\":\"Maria Silva\",\"paraLabel\":\"João Souza\",\"tipo\":\"EDITADO\"}]"));
+                .thenReturn(Map.of(2L, "[{\"caminho\":\"Pessoa\",\"de\":\"44\",\"para\":\"52\",\"deLabel\":\"Maria Silva\",\"paraLabel\":\"Joao Souza\",\"tipo\":\"EDITADO\"}]"));
 
         PageResponseDTO<AuditLogResponseDTO> response = service.list(
                 null,
@@ -340,7 +330,7 @@ class AuditLogServiceImplTest {
         );
 
         assertThat(response.content()).hasSize(1);
-        assertThat(response.content().get(0).alteracoesJson()).contains("Maria Silva", "João Souza");
+        assertThat(response.content().get(0).alteracoesJson()).contains("Maria Silva", "Joao Souza");
     }
 
     @Test
