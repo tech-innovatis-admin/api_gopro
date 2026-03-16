@@ -76,6 +76,8 @@ public class ProjectController {
             @RequestParam(required = false) ProjectTypeEnum projectType,
             @Parameter(description = "Filtrar por GOV ou IF")
             @RequestParam(required = false) ProjectGovIfEnum projectGovIf,
+            @Parameter(description = "Filtrar por execucao pela Innovatis")
+            @RequestParam(required = false) Boolean executedByInnovatis,
             @Parameter(description = "Filtrar por mes de referencia (1-12)")
             @RequestParam(required = false) Integer month,
             @Parameter(description = "Filtrar por ano de referencia (ex: 2026)")
@@ -86,7 +88,7 @@ public class ProjectController {
             @RequestParam(required = false) Long partnerId
     ) {
         return ResponseEntity.ok(
-                projectService.getDashboard(projectStatus, projectType, projectGovIf, month, year, location, partnerId)
+                projectService.getDashboard(projectStatus, projectType, projectGovIf, executedByInnovatis, month, year, location, partnerId)
         );
     }
 

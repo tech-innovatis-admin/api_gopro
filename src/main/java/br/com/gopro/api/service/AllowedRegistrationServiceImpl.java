@@ -46,7 +46,7 @@ import java.util.*;
 @RequiredArgsConstructor
 public class AllowedRegistrationServiceImpl implements AllowedRegistrationService {
 
-    private static final String INVALID_INVITE_MESSAGE = "Convite invalido ou expirado";
+    private static final String INVALID_INVITE_MESSAGE = "Convite inválido ou expirado";
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
 
     private final AllowedRegistrationRepository allowedRegistrationRepository;
@@ -78,7 +78,7 @@ public class AllowedRegistrationServiceImpl implements AllowedRegistrationServic
         expirePendingInvites();
 
         AppUser inviter = appUserRepository.findById(actor.id())
-                .orElseThrow(() -> new ResourceNotFoundException("Usuario autenticado nao encontrado"));
+                .orElseThrow(() -> new ResourceNotFoundException("Usuário autenticado não encontrado"));
 
         String normalizedEmail = normalizeEmail(dto.email());
         LocalDateTime expiresAt = resolveExpiration(dto.expiresAt());
@@ -113,20 +113,19 @@ public class AllowedRegistrationServiceImpl implements AllowedRegistrationServic
                 AuditEventRequest.builder()
                         .actorUserId(actor.id())
                         .tipoAuditoria(AuditScopeEnum.USERS)
-                        .modulo("Usuarios")
+                        .modulo("Usuários")
                         .feature("Convites de cadastro")
                         .entidadePrincipal("Convite de cadastro")
                         .entidadeId(String.valueOf(saved.getId()))
                         .acao(isCreate ? "CRIAR" : "ATUALIZAR")
                         .resultado(AuditResultEnum.SUCESSO)
-                        .resumo(isCreate
-                                ? "Convite criado para " + saved.getEmail()
-                                : "Convite reemitido para " + saved.getEmail())
-                        .descricao("Convite de cadastro preparado para o fluxo de registro publico.")
                         .antes(before)
                         .depois(after)
                         .alteracoes(buildChanges(before, after))
-                        .detalhesTecnicos(Map.of("inviteAction", isCreate ? AuditActions.INVITE_CREATED : AuditActions.INVITE_REISSUED))
+                        .detalhesTecnicos(Map.of(
+                                "auditAction", isCreate ? AuditActions.INVITE_CREATED : AuditActions.INVITE_REISSUED,
+                                "inviteAction", isCreate ? AuditActions.INVITE_CREATED : AuditActions.INVITE_REISSUED
+                        ))
                         .build(),
                 request
         );
@@ -143,10 +142,10 @@ public class AllowedRegistrationServiceImpl implements AllowedRegistrationServic
         expirePendingInvites();
 
         if (page < 0) {
-            throw new BusinessException("Pagina deve ser maior ou igual a 0");
+            throw new BusinessException("Página deve ser maior ou igual a 0");
         }
         if (size <= 0 || size > 100) {
-            throw new BusinessException("Tamanho da pagina deve estar entre 1 e 100");
+            throw new BusinessException("Tamanho da página deve estar entre 1 e 100");
         }
 
         Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
@@ -179,13 +178,13 @@ public class AllowedRegistrationServiceImpl implements AllowedRegistrationServic
             HttpServletRequest request
     ) {
         AllowedRegistration invite = allowedRegistrationRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Convite nao encontrado"));
+                .orElseThrow(() -> new ResourceNotFoundException("Convite não encontrado"));
 
         if (invite.getStatus() == AllowedRegistrationStatusEnum.USED) {
-            throw new BusinessException("Nao e possivel cancelar convite ja utilizado");
+            throw new BusinessException("Não é possível cancelar convite já utilizado");
         }
         if (invite.getStatus() == AllowedRegistrationStatusEnum.CANCELLED) {
-            throw new BusinessException("Convite ja esta cancelado");
+            throw new BusinessException("Convite já está cancelado");
         }
 
         Map<String, Object> before = snapshot(invite);
@@ -199,18 +198,19 @@ public class AllowedRegistrationServiceImpl implements AllowedRegistrationServic
                 AuditEventRequest.builder()
                         .actorUserId(actor.id())
                         .tipoAuditoria(AuditScopeEnum.USERS)
-                        .modulo("Usuarios")
+                        .modulo("Usuários")
                         .feature("Convites de cadastro")
                         .entidadePrincipal("Convite de cadastro")
                         .entidadeId(String.valueOf(saved.getId()))
                         .acao("ATUALIZAR")
                         .resultado(AuditResultEnum.SUCESSO)
-                        .resumo("Convite cancelado para " + saved.getEmail())
-                        .descricao("Convite marcado como cancelado e indisponivel para uso.")
                         .antes(before)
                         .depois(after)
                         .alteracoes(buildChanges(before, after))
-                        .detalhesTecnicos(Map.of("inviteAction", AuditActions.INVITE_CANCELLED))
+                        .detalhesTecnicos(Map.of(
+                                "auditAction", AuditActions.INVITE_CANCELLED,
+                                "inviteAction", AuditActions.INVITE_CANCELLED
+                        ))
                         .build(),
                 request
         );
@@ -226,15 +226,15 @@ public class AllowedRegistrationServiceImpl implements AllowedRegistrationServic
             HttpServletRequest request
     ) {
         AllowedRegistration invite = allowedRegistrationRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Convite nao encontrado"));
+                .orElseThrow(() -> new ResourceNotFoundException("Convite não encontrado"));
 
         String normalizedEmail = normalizeEmail(invite.getEmail());
         if (appUserRepository.existsByEmailIgnoreCase(normalizedEmail)) {
-            throw new BusinessException("Ja existe usuario ativo para este e-mail");
+            throw new BusinessException("Já existe usuário ativo para este e-mail");
         }
 
         AppUser inviter = appUserRepository.findById(actor.id())
-                .orElseThrow(() -> new ResourceNotFoundException("Usuario autenticado nao encontrado"));
+                .orElseThrow(() -> new ResourceNotFoundException("Usuário autenticado não encontrado"));
 
         String rawToken = generateSecureToken();
         String tokenHash = hashToken(rawToken);
@@ -261,12 +261,13 @@ public class AllowedRegistrationServiceImpl implements AllowedRegistrationServic
                         .entidadeId(String.valueOf(saved.getId()))
                         .acao("ATUALIZAR")
                         .resultado(AuditResultEnum.SUCESSO)
-                        .resumo("Convite reemitido para " + saved.getEmail())
-                        .descricao("Token de convite renovado com nova expiracao.")
                         .antes(before)
                         .depois(after)
                         .alteracoes(buildChanges(before, after))
-                        .detalhesTecnicos(Map.of("inviteAction", AuditActions.INVITE_REISSUED))
+                        .detalhesTecnicos(Map.of(
+                                "auditAction", AuditActions.INVITE_REISSUED,
+                                "inviteAction", AuditActions.INVITE_REISSUED
+                        ))
                         .build(),
                 request
         );
@@ -292,10 +293,11 @@ public class AllowedRegistrationServiceImpl implements AllowedRegistrationServic
                         .entidadeId(String.valueOf(invite.getId()))
                         .acao("ATUALIZAR")
                         .resultado(AuditResultEnum.SUCESSO)
-                        .resumo("Convite validado para " + invite.getEmail())
-                        .descricao("Token de convite validado para prosseguir com o cadastro.")
                         .depois(Map.of("email", invite.getEmail()))
-                        .detalhesTecnicos(Map.of("inviteAction", AuditActions.INVITE_VALIDATED))
+                        .detalhesTecnicos(Map.of(
+                                "auditAction", AuditActions.INVITE_VALIDATED,
+                                "inviteAction", AuditActions.INVITE_VALIDATED
+                        ))
                         .build(),
                 request
         );
@@ -371,14 +373,16 @@ public class AllowedRegistrationServiceImpl implements AllowedRegistrationServic
                         .entidadeId(String.valueOf(savedUser.getId()))
                         .acao("CRIAR")
                         .resultado(AuditResultEnum.SUCESSO)
-                        .resumo("Cadastro concluido para " + savedUser.getFullName())
-                        .descricao("Usuario criado a partir de convite valido.")
                         .depois(Map.of(
                                 "email", savedUser.getEmail(),
+                                "fullName", savedUser.getFullName(),
                                 "role", savedUser.getRole(),
                                 "status", savedUser.getStatus()
                         ))
-                        .detalhesTecnicos(Map.of("inviteAction", AuditActions.REGISTER_COMPLETED))
+                        .detalhesTecnicos(Map.of(
+                                "auditAction", AuditActions.REGISTER_COMPLETED,
+                                "inviteAction", AuditActions.REGISTER_COMPLETED
+                        ))
                         .build(),
                 request
         );
@@ -393,12 +397,13 @@ public class AllowedRegistrationServiceImpl implements AllowedRegistrationServic
                         .entidadeId(String.valueOf(invite.getId()))
                         .acao("ATUALIZAR")
                         .resultado(AuditResultEnum.SUCESSO)
-                        .resumo("Convite marcado como utilizado para " + invite.getEmail())
-                        .descricao("Convite validado foi encerrado apos criacao do usuario.")
                         .antes(inviteBefore)
                         .depois(inviteAfter)
                         .alteracoes(buildChanges(inviteBefore, inviteAfter))
-                        .detalhesTecnicos(Map.of("inviteAction", AuditActions.REGISTER_COMPLETED))
+                        .detalhesTecnicos(Map.of(
+                                "auditAction", AuditActions.REGISTER_COMPLETED,
+                                "inviteAction", AuditActions.REGISTER_COMPLETED
+                        ))
                         .build(),
                 request
         );

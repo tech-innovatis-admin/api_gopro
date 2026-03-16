@@ -83,6 +83,7 @@ public class ProjectServiceImpl implements ProjectService {
         for (int attempt = 0; attempt < MAX_CODE_GENERATION_ATTEMPTS; attempt++) {
             Project project = projectMapper.toEntity(dto);
             project.setState(normalizedUf);
+            project.setExecutedByInnovatis(Boolean.TRUE.equals(dto.executedByInnovatis()));
             project.setCode(generateContractCode(project.getProjectType(), project.getProjectGovIf(), normalizedUf));
             project.setIsActive(true);
             if (project.getTotalReceived() == null) {
@@ -159,6 +160,9 @@ public class ProjectServiceImpl implements ProjectService {
         }
 
         projectMapper.updateEntityFromDTO(dto, project);
+        if (dto.executedByInnovatis() != null) {
+            project.setExecutedByInnovatis(dto.executedByInnovatis());
+        }
         Project updated = projectRepository.save(project);
         ensureCoordinatorLinkedToProjectPeople(updated, dto.updatedBy(), project.getCreatedBy());
         return projectMapper.toDTO(updated);
@@ -207,6 +211,7 @@ public class ProjectServiceImpl implements ProjectService {
             ProjectStatusEnum projectStatus,
             ProjectTypeEnum projectType,
             ProjectGovIfEnum projectGovIf,
+            Boolean executedByInnovatis,
             Integer month,
             Integer year,
             String location,
@@ -228,6 +233,7 @@ public class ProjectServiceImpl implements ProjectService {
                 .filter(project -> projectStatus == null || projectStatus == project.getProjectStatus())
                 .filter(project -> projectType == null || projectType == project.getProjectType())
                 .filter(project -> projectGovIf == null || projectGovIf == project.getProjectGovIf())
+                .filter(project -> executedByInnovatis == null || executedByInnovatis.equals(project.getExecutedByInnovatis()))
                 .filter(project -> month == null || monthMatches(project, month))
                 .filter(project -> year == null || yearMatches(project, year))
                 .filter(project -> partnerId == null || partnerMatches(project, partnerId))
@@ -325,6 +331,7 @@ public class ProjectServiceImpl implements ProjectService {
                         projectStatus,
                         projectType,
                         projectGovIf,
+                        executedByInnovatis,
                         month,
                         year,
                         trimToNull(location),

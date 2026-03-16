@@ -92,6 +92,9 @@ public class Project {
     @Column(name = "execution_location", length = 400)
     private String executionLocation;
 
+    @Column(name = "executed_by_innovatis", nullable = false)
+    private Boolean executedByInnovatis = false;
+
     @Column(name = "total_received", nullable = false, precision = 35, scale = 2)
     private BigDecimal totalReceived;
 

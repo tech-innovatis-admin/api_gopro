@@ -36,5 +36,6 @@ public record ProjectUpdateDTO(
         String city,
         String state,
         String executionLocation,
+        Boolean executedByInnovatis,
         Long updatedBy
 ) {}

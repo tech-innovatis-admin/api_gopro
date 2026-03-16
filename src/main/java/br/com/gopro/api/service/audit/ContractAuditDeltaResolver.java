@@ -60,6 +60,7 @@ public class ContractAuditDeltaResolver {
                     entry("city", "Cidade"),
                     entry("state", "Estado"),
                     entry("executionLocation", "Local de execucao"),
+                    entry("executedByInnovatis", "Execucao pela Innovatis"),
                     entry("areaSegmento", "Area/segmento")
             )),
             entry("documents", Map.ofEntries(

@@ -13,6 +13,7 @@ import br.com.gopro.api.model.AllowedRegistration;
 import br.com.gopro.api.model.AppUser;
 import br.com.gopro.api.repository.AllowedRegistrationRepository;
 import br.com.gopro.api.repository.AppUserRepository;
+import br.com.gopro.api.service.audit.AuditEventRequest;
 import jakarta.servlet.http.HttpServletRequest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -100,6 +101,17 @@ class AllowedRegistrationServiceImplTest {
         assertThat(persisted.getStatus()).isEqualTo(AllowedRegistrationStatusEnum.PENDING);
         assertThat(response.email()).isEqualTo("analista@empresa.com");
         assertThat(response.inviteLink()).contains("token=");
+
+        ArgumentCaptor<AuditEventRequest> auditCaptor = ArgumentCaptor.forClass(AuditEventRequest.class);
+        verify(auditLogService).log(auditCaptor.capture(), eq(request));
+        AuditEventRequest auditEvent = auditCaptor.getValue();
+        assertThat(auditEvent.getResumo()).isNull();
+        assertThat(auditEvent.getDescricao()).isNull();
+        assertThat(auditEvent.getDetalhesTecnicos())
+                .isEqualTo(java.util.Map.of(
+                        "auditAction", AuditActions.INVITE_CREATED,
+                        "inviteAction", AuditActions.INVITE_CREATED
+                ));
     }
 
     @Test
@@ -165,7 +177,7 @@ class AllowedRegistrationServiceImplTest {
 
         assertThatThrownBy(() -> service.completeRegistration(dto, request))
                 .isInstanceOf(BusinessException.class)
-                .hasMessageContaining("Convite invalido ou expirado");
+                .hasMessageContaining("Convite inválido ou expirado");
 
         assertThat(invite.getStatus()).isEqualTo(AllowedRegistrationStatusEnum.EXPIRED);
         verify(allowedRegistrationRepository).save(invite);
@@ -188,7 +200,7 @@ class AllowedRegistrationServiceImplTest {
 
         assertThatThrownBy(() -> service.completeRegistration(dto, request))
                 .isInstanceOf(BusinessException.class)
-                .hasMessageContaining("Convite invalido ou expirado");
+                .hasMessageContaining("Convite inválido ou expirado");
     }
 
     private AppUser inviter(Long id) {

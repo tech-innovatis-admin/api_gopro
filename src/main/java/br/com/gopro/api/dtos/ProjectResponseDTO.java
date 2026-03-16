@@ -30,6 +30,7 @@ public record ProjectResponseDTO(
         String city,
         String state,
         String executionLocation,
+        Boolean executedByInnovatis,
         Boolean isActive,
         BigDecimal totalReceived,
         BigDecimal totalExpenses,

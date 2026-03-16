@@ -60,9 +60,11 @@ public class AuthServiceImpl implements AuthService {
                                     .entidadePrincipal("Usuario")
                                     .acao("LOGIN")
                                     .resultado(AuditResultEnum.FALHA)
-                                    .resumo("Falha de login para '" + dto.login() + "'")
-                                    .descricao("Tentativa de acesso negada por credenciais invalidas.")
-                                    .detalhesTecnicos(Map.of("login", dto.login(), "reason", "NOT_FOUND"))
+                                    .detalhesTecnicos(Map.of(
+                                            "auditAction", AuditActions.LOGIN_FAILED,
+                                            "login", dto.login(),
+                                            "reason", "NOT_FOUND"
+                                    ))
                                     .build(),
                             request);
                     return new UnauthorizedException(GENERIC_INVALID_CREDENTIALS);
@@ -74,13 +76,15 @@ public class AuthServiceImpl implements AuthService {
                             .tipoAuditoria(AuditScopeEnum.SYSTEM)
                             .modulo("Sistema")
                             .feature("Login")
-                            .entidadePrincipal("Usuario")
+                            .entidadePrincipal("Usuário")
                             .entidadeId(String.valueOf(user.getId()))
                             .acao("LOGIN")
                             .resultado(AuditResultEnum.FALHA)
-                            .resumo("Falha de login para '" + user.getEmail() + "'")
-                            .descricao("Tentativa de acesso negada porque o usuario esta inativo ou bloqueado.")
-                            .detalhesTecnicos(Map.of("login", dto.login(), "reason", "INACTIVE_OR_DISABLED"))
+                            .detalhesTecnicos(Map.of(
+                                    "auditAction", AuditActions.LOGIN_FAILED,
+                                    "login", dto.login(),
+                                    "reason", "INACTIVE_OR_DISABLED"
+                            ))
                             .build(),
                     request);
             throw new UnauthorizedException(GENERIC_INVALID_CREDENTIALS);
@@ -96,9 +100,11 @@ public class AuthServiceImpl implements AuthService {
                             .entidadeId(String.valueOf(user.getId()))
                             .acao("LOGIN")
                             .resultado(AuditResultEnum.FALHA)
-                            .resumo("Falha de login para '" + user.getEmail() + "'")
-                            .descricao("Tentativa de acesso negada por senha informada incorretamente.")
-                            .detalhesTecnicos(Map.of("login", dto.login(), "reason", "PASSWORD_MISMATCH"))
+                            .detalhesTecnicos(Map.of(
+                                    "auditAction", AuditActions.LOGIN_FAILED,
+                                    "login", dto.login(),
+                                    "reason", "PASSWORD_MISMATCH"
+                            ))
                             .build(),
                     request);
             throw new UnauthorizedException(GENERIC_INVALID_CREDENTIALS);
@@ -119,9 +125,8 @@ public class AuthServiceImpl implements AuthService {
                         .entidadeId(String.valueOf(user.getId()))
                         .acao("LOGIN")
                         .resultado(AuditResultEnum.SUCESSO)
-                        .resumo("Login realizado por " + user.getFullName())
-                        .descricao("Acesso autenticado com sucesso no sistema.")
                         .depois(Map.of("email", user.getEmail(), "role", user.getRole()))
+                        .detalhesTecnicos(Map.of("auditAction", AuditActions.LOGIN_SUCCESS))
                         .build(),
                 request);
 

@@ -6,9 +6,11 @@ import br.com.gopro.api.enums.UserRoleEnum;
 import br.com.gopro.api.enums.UserStatusEnum;
 import br.com.gopro.api.model.AppUser;
 import br.com.gopro.api.repository.AppUserRepository;
+import br.com.gopro.api.service.audit.AuditEventRequest;
 import jakarta.servlet.http.HttpServletRequest;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -76,7 +78,13 @@ class UserAdminServiceImplTest {
         assertThat(response.role()).isEqualTo(UserRoleEnum.ADMIN);
         assertThat(response.status()).isEqualTo(UserStatusEnum.DISABLED);
         assertThat(response.isActive()).isFalse();
-        verify(auditLogService).log(any(br.com.gopro.api.service.audit.AuditEventRequest.class), eq(request));
+        ArgumentCaptor<AuditEventRequest> captor = ArgumentCaptor.forClass(AuditEventRequest.class);
+        verify(auditLogService).log(captor.capture(), eq(request));
+
+        AuditEventRequest event = captor.getValue();
+        assertThat(event.getResumo()).isNull();
+        assertThat(event.getDescricao()).isNull();
+        assertThat(event.getDetalhesTecnicos()).isEqualTo(java.util.Map.of("auditAction", AuditActions.USER_UPDATED));
     }
 
     private AppUser user(Long id, UserRoleEnum role, UserStatusEnum status) {

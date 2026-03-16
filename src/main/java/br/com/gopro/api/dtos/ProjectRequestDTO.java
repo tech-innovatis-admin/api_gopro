@@ -38,5 +38,6 @@ public record ProjectRequestDTO(
         String city,
         @NotBlank(message = "UF e obrigatoria") String state,
         String executionLocation,
+        @NotNull(message = "Informe se o projeto e executado pela Innovatis") Boolean executedByInnovatis,
         Long createdBy
 ) {}

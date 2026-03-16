@@ -4,6 +4,7 @@ import br.com.gopro.api.enums.UserRoleEnum;
 import br.com.gopro.api.enums.UserStatusEnum;
 import br.com.gopro.api.model.AppUser;
 import br.com.gopro.api.repository.AppUserRepository;
+import br.com.gopro.api.service.AuditActions;
 import br.com.gopro.api.service.AuditLogService;
 import br.com.gopro.api.enums.AuditResultEnum;
 import br.com.gopro.api.enums.AuditScopeEnum;
@@ -54,23 +55,29 @@ public class SuperAdminBootstrapInitializer implements ApplicationRunner {
             return;
         }
 
+        String normalizedEmail = bootstrapEmail.trim().toLowerCase();
+        String normalizedUsername = isBlank(bootstrapUsername) ? "tech" : bootstrapUsername.trim().toLowerCase();
+        Optional<AppUser> existing = resolveBootstrapUser(normalizedEmail, normalizedUsername);
+
         boolean hasActiveSuperAdmin = appUserRepository.existsByRoleAndStatusAndIsActive(
                 UserRoleEnum.SUPERADMIN,
                 UserStatusEnum.ACTIVE,
                 true
         );
         if (hasActiveSuperAdmin) {
-            log.info("superadmin bootstrap ignorado: ja existe SUPERADMIN ativo");
+            if (existing.isPresent() && isActiveSuperAdmin(existing.get())) {
+                log.info("superadmin bootstrap ignorado: usuario bootstrap ja existe e esta ativo");
+            } else {
+                log.info("superadmin bootstrap ignorado: ja existe SUPERADMIN ativo");
+            }
             return;
         }
 
-        String normalizedEmail = bootstrapEmail.trim().toLowerCase();
-        Optional<AppUser> existing = appUserRepository.findByEmailIgnoreCase(normalizedEmail);
         AppUser superAdmin = existing.orElseGet(AppUser::new);
         boolean created = superAdmin.getId() == null;
 
         superAdmin.setEmail(normalizedEmail);
-        superAdmin.setUsername(isBlank(bootstrapUsername) ? "tech" : bootstrapUsername.trim().toLowerCase());
+        superAdmin.setUsername(normalizedUsername);
         superAdmin.setFullName(isBlank(bootstrapFullName) ? "Tech Innovatis" : bootstrapFullName.trim());
         superAdmin.setPasswordHash(passwordEncoder.encode(bootstrapPassword));
         superAdmin.setRole(UserRoleEnum.SUPERADMIN);
@@ -95,9 +102,8 @@ public class SuperAdminBootstrapInitializer implements ApplicationRunner {
                         .entidadeId(String.valueOf(saved.getId()))
                         .acao("CRIAR")
                         .resultado(AuditResultEnum.SUCESSO)
-                        .resumo("Superadmin inicial provisionado")
-                        .descricao("Conta superadmin criada ou atualizada via bootstrap de ambiente.")
                         .depois(Map.of("email", saved.getEmail(), "created", created))
+                        .detalhesTecnicos(Map.of("auditAction", AuditActions.SUPERADMIN_BOOTSTRAPPED))
                         .build(),
                 null
         );
@@ -105,5 +111,24 @@ public class SuperAdminBootstrapInitializer implements ApplicationRunner {
 
     private boolean isBlank(String value) {
         return value == null || value.isBlank();
+    }
+
+    private Optional<AppUser> resolveBootstrapUser(String email, String username) {
+        Optional<AppUser> existing = appUserRepository.findByEmailIgnoreCase(email);
+        if (existing.isPresent()) {
+            return existing;
+        }
+
+        if (isBlank(username)) {
+            return Optional.empty();
+        }
+
+        return appUserRepository.findByUsernameIgnoreCase(username);
+    }
+
+    private boolean isActiveSuperAdmin(AppUser user) {
+        return user.getRole() == UserRoleEnum.SUPERADMIN
+                && user.getStatus() == UserStatusEnum.ACTIVE
+                && Boolean.TRUE.equals(user.getIsActive());
     }
 }

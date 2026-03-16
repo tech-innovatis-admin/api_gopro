@@ -8,6 +8,7 @@ import br.com.gopro.api.repository.*;
 import br.com.gopro.api.service.AuditLogService;
 import br.com.gopro.api.service.audit.AuditEventRequest;
 import br.com.gopro.api.service.audit.AuditFieldChange;
+import br.com.gopro.api.service.audit.ContractAuditDeltaResolver;
 import br.com.gopro.api.service.audit.AuditSnapshotExtractor;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -102,6 +103,7 @@ public class ApiMutationAuditFilter extends OncePerRequestFilter {
             entry("city", "Cidade"),
             entry("state", "Estado"),
             entry("executionLocation", "Local de execucao"),
+            entry("executedByInnovatis", "Execucao pela Innovatis"),
             entry("areaSegmento", "Area/segmento")
     );
 
@@ -125,6 +127,7 @@ public class ApiMutationAuditFilter extends OncePerRequestFilter {
             entry("city", "a cidade"),
             entry("state", "o estado"),
             entry("executionLocation", "o local de execucao"),
+            entry("executedByInnovatis", "a execucao pela Innovatis"),
             entry("areaSegmento", "a area/segmento")
     );
 
@@ -149,6 +152,7 @@ public class ApiMutationAuditFilter extends OncePerRequestFilter {
     private final AuditLogService auditLogService;
     private final ObjectMapper objectMapper;
     private final AuditSnapshotExtractor auditSnapshotExtractor;
+    private final ContractAuditDeltaResolver contractAuditDeltaResolver;
 
     private final ProjectRepository projectRepository;
     private final BudgetCategoryRepository budgetCategoryRepository;
@@ -241,16 +245,33 @@ public class ApiMutationAuditFilter extends OncePerRequestFilter {
 
                 String actionCode = resolveActionCode(method);
                 String resourceKey = normalizeResourceKey(context.resource());
+                AuditScopeEnum effectiveScope = normalizeScope(context.scope(), resourceKey);
                 String modulo = resolveModulo(context.scope(), resourceKey);
                 String feature = resolveFeature(resourceKey, actionCode);
                 String entidadePrincipal = resolveEntidadePrincipal(context.scope(), resourceKey);
                 String aba = resolveAba(context.scope(), resourceKey);
                 String subsecao = resolveSubsecao(resourceKey);
-                String resumo = buildResumo(context, actionDescription, actionCode);
-                String descricao = buildDescricao(feature, aba, actionDescription.changedFields());
-
                 List<AuditFieldChange> alteracoes = null;
-                if (!actionDescription.changedFields().isEmpty()) {
+                if (effectiveScope == AuditScopeEnum.CONTRACTS) {
+                    ContractAuditDeltaResolver.ContractAuditDelta contractDelta = contractAuditDeltaResolver.resolve(
+                            resourceKey,
+                            actionCode,
+                            beforeSnapshot,
+                            afterSnapshot
+                    );
+                    alteracoes = contractDelta.changes();
+                    payload.put("deltaReliable", contractDelta.reliable());
+                    payload.put("deltaSource", contractDelta.source());
+                    payload.put("skipAutomaticDelta", true);
+                    if (!contractDelta.changes().isEmpty()) {
+                        payload.put("changes", contractDelta.changes());
+                    } else {
+                        payload.remove("changes");
+                    }
+                    if (!actionDescription.changedFields().isEmpty()) {
+                        payload.put("requestFields", actionDescription.changedFields());
+                    }
+                } else if (!actionDescription.changedFields().isEmpty()) {
                     alteracoes = actionDescription.changedFields().stream()
                             .map(change -> new AuditFieldChange(change.label(), null, change.value(), "EDITADO"))
                             .toList();
@@ -265,7 +286,7 @@ public class ApiMutationAuditFilter extends OncePerRequestFilter {
                 auditLogService.log(
                         AuditEventRequest.builder()
                                 .actorUserId(actorUserId)
-                                .tipoAuditoria(normalizeScope(context.scope(), resourceKey))
+                                .tipoAuditoria(effectiveScope)
                                 .modulo(modulo)
                                 .feature(feature)
                                 .entidadePrincipal(entidadePrincipal)
@@ -273,8 +294,6 @@ public class ApiMutationAuditFilter extends OncePerRequestFilter {
                                 .aba(aba)
                                 .subsecao(subsecao)
                                 .acao(actionCode)
-                                .resumo(resumo)
-                                .descricao(descricao)
                                 .resultado(AuditResultEnum.SUCESSO)
                                 .antes(beforeSnapshot)
                                 .depois(afterSnapshot)
@@ -424,13 +443,15 @@ public class ApiMutationAuditFilter extends OncePerRequestFilter {
             return null;
         }
         return switch (resourceKey) {
-            case "projects" -> "Dados Gerais";
-            case "budget-categories", "budget-items", "budget-transfers", "incomes", "expenses" -> "Financeiro";
-            case "disbursement-schedules" -> "Desembolsos";
-            case "goals", "stages", "phases" -> "Cronograma";
-            case "project-people", "project-companies", "project-organizations", "project_organization" -> "Equipe e Parceiros";
-            case "documents" -> "Anexos";
-            default -> "Geral";
+            case "projects" -> "Contrato";
+            case "budget-categories", "budget-items", "budget-transfers" -> "Rubricas";
+            case "incomes", "expenses" -> "Pagamentos";
+            case "disbursement-schedules" -> "Desembolso";
+            case "goals", "stages", "phases" -> "Metas";
+            case "project-people" -> "Pessoas";
+            case "project-companies", "project-organizations", "project_organization" -> "Empresas";
+            case "documents" -> "Arquivos";
+            default -> "Contrato";
         };
     }
 
@@ -439,8 +460,15 @@ public class ApiMutationAuditFilter extends OncePerRequestFilter {
             case "budget-categories" -> "Rubricas";
             case "budget-items" -> "Itens de rubrica";
             case "budget-transfers" -> "Remanejamentos";
+            case "incomes" -> "Receitas";
+            case "expenses" -> "Despesas";
+            case "goals" -> "Metas";
+            case "stages" -> "Etapas";
+            case "phases" -> "Fases";
             case "project-people" -> "Pessoas vinculadas";
-            case "project-companies", "project-organizations", "project_organization" -> "Empresas e organizacoes vinculadas";
+            case "project-companies" -> "Empresas vinculadas";
+            case "project-organizations", "project_organization" -> "Organizacoes vinculadas";
+            case "documents" -> "Arquivos";
             default -> null;
         };
     }
@@ -539,15 +567,7 @@ public class ApiMutationAuditFilter extends OncePerRequestFilter {
             return switch (method) {
                 case "POST" -> "Criou o projeto";
                 case "DELETE" -> "Excluiu o projeto";
-                case "PUT", "PATCH" -> {
-                    if (changedFields.size() == 1) {
-                        String phrase = PROJECT_FIELD_ACTION_PHRASES.get(changedFields.get(0).field());
-                        if (phrase != null) {
-                            yield "Alterou " + phrase;
-                        }
-                    }
-                    yield "Alterou informacoes do projeto";
-                }
+                case "PUT", "PATCH" -> "Atualizou o projeto";
                 default -> "Alterou o projeto";
             };
         }

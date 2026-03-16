@@ -108,11 +108,10 @@ public class UserAdminServiceImpl implements UserAdminService {
                         .entidadeId(String.valueOf(saved.getId()))
                         .acao("ATUALIZAR")
                         .resultado(AuditResultEnum.SUCESSO)
-                        .resumo("Usuario " + saved.getFullName() + ": cadastro atualizado")
-                        .descricao("Perfil de usuario atualizado na tela de administracao.")
                         .antes(before)
                         .depois(after)
                         .alteracoes(buildChanges(before, after))
+                        .detalhesTecnicos(Map.of("auditAction", AuditActions.USER_UPDATED))
                         .build(),
                 request
         );

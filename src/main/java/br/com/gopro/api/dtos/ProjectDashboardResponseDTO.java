@@ -23,6 +23,7 @@ public record ProjectDashboardResponseDTO(
             ProjectStatusEnum projectStatus,
             ProjectTypeEnum projectType,
             ProjectGovIfEnum projectGovIf,
+            Boolean executedByInnovatis,
             Integer month,
             Integer year,
             String location,
