@@ -9,11 +9,15 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 @Component
 public class AuditMessageFormatter {
 
     private static final String CONTRACT_ROOT_RESOURCE = "projects";
+    private static final Pattern BUDGET_TRANSFER_COMEBACK_PATTERN =
+            Pattern.compile("comeback\\s+do\\s+remanejamento\\s*#\\s*(\\d+)", Pattern.CASE_INSENSITIVE);
     private static final Set<String> PRECISE_PROJECT_FIELDS = Set.of(
             "Nome do projeto",
             "Codigo do projeto",
@@ -125,6 +129,19 @@ public class AuditMessageFormatter {
                         : "O arquivo \"" + fileName + "\" foi atualizado.";
             };
             return new AuditMessage(limit(summary, 500), limit(description, 2000));
+        }
+
+        if ("budget-transfers".equals(resource) && "CRIAR".equals(action)) {
+            BudgetTransferComebackInfo comebackInfo = resolveBudgetTransferComebackInfo(request, technical);
+            if (comebackInfo.isComeback()) {
+                summary = comebackInfo.originalTransferId() == null
+                        ? "Comeback de remanejamento registrado no " + contractReference
+                        : "Comeback do remanejamento #" + comebackInfo.originalTransferId() + " registrado no " + contractReference;
+                description = comebackInfo.originalTransferId() == null
+                        ? "Foi registrado um comeback para desfazer um remanejamento anterior na aba " + aba + "."
+                        : "Foi registrado um comeback para desfazer o remanejamento #" + comebackInfo.originalTransferId() + " na aba " + aba + ".";
+                return new AuditMessage(limit(summary, 500), limit(description, 2000));
+            }
         }
 
         summary = buildContractResourceSummary(resource, action, contractReference);
@@ -478,6 +495,30 @@ public class AuditMessageFormatter {
         return trimToNull(extractString(technical, "email"));
     }
 
+    private BudgetTransferComebackInfo resolveBudgetTransferComebackInfo(
+            AuditEventRequest request,
+            Map<String, Object> technical
+    ) {
+        String reason = extractFirstString(asMap(request.getDepois()), "reason", "motivo");
+        if (reason == null) {
+            reason = extractFirstString(asMap(request.getAntes()), "reason", "motivo");
+        }
+        if (reason == null) {
+            reason = extractFirstString(technical, "reason", "motivo");
+        }
+
+        if (reason == null) {
+            return new BudgetTransferComebackInfo(false, null);
+        }
+
+        Matcher matcher = BUDGET_TRANSFER_COMEBACK_PATTERN.matcher(reason);
+        if (!matcher.find()) {
+            return new BudgetTransferComebackInfo(false, null);
+        }
+
+        return new BudgetTransferComebackInfo(true, matcher.group(1));
+    }
+
     private String resolveEmail(AuditEventRequest request) {
         String fromAfter = extractString(asMap(request.getDepois()), "email");
         if (fromAfter != null) {
@@ -567,6 +608,20 @@ public class AuditMessageFormatter {
         return text.isEmpty() ? null : text;
     }
 
+    private String extractFirstString(Map<String, Object> value, String... keys) {
+        if (value == null || keys == null) {
+            return null;
+        }
+
+        for (String key : keys) {
+            String extracted = extractString(value, key);
+            if (extracted != null) {
+                return extracted;
+            }
+        }
+        return null;
+    }
+
     private String extractFileName(Map<String, Object> technical) {
         String fileName = extractString(technical, "fileName");
         if (fileName != null) {
@@ -619,5 +674,8 @@ public class AuditMessageFormatter {
             return value;
         }
         return value.substring(0, max) + "...";
+    }
+
+    private record BudgetTransferComebackInfo(boolean isComeback, String originalTransferId) {
     }
 }

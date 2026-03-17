@@ -59,16 +59,22 @@ class RbacControllerSecurityTest {
 
     @Test
     @WithMockUser(roles = "SUPERADMIN")
-    void generalAdminAuditEndpoint_shouldNotExist() throws Exception {
+    void superadmin_shouldAccessGeneralAdminAuditEndpoint() throws Exception {
+        when(auditLogService.list(any(), any(), any(), any(), any(), any(), any(), any(), any(), anyInt(), anyInt()))
+                .thenReturn(new PageResponseDTO<>(List.of(), 0, 20, 0, 0, true, true));
+
         mockMvc.perform(get("/admin/audit"))
-                .andExpect(status().isNotFound());
+                .andExpect(status().isOk());
     }
 
     @Test
     @WithMockUser(roles = "ADMIN")
-    void admin_shouldAlsoReceiveNotFoundForRemovedGeneralAuditEndpoint() throws Exception {
+    void admin_shouldAccessGeneralAdminAuditEndpoint() throws Exception {
+        when(auditLogService.list(any(), any(), any(), any(), any(), any(), any(), any(), any(), anyInt(), anyInt()))
+                .thenReturn(new PageResponseDTO<>(List.of(), 0, 20, 0, 0, true, true));
+
         mockMvc.perform(get("/admin/audit"))
-                .andExpect(status().isNotFound());
+                .andExpect(status().isOk());
     }
 
     @Test
@@ -83,21 +89,34 @@ class RbacControllerSecurityTest {
 
     @Test
     @WithMockUser(roles = "ADMIN")
-    void admin_shouldNotAccessContractAuditEndpointWithoutContractId() throws Exception {
+    void admin_shouldAccessContractAuditEndpointWithoutContractId() throws Exception {
+        when(auditLogService.list(any(), any(), any(), any(), any(), any(), any(), any(), any(), anyInt(), anyInt()))
+                .thenReturn(new PageResponseDTO<>(List.of(), 0, 20, 0, 0, true, true));
+
         mockMvc.perform(get("/audit-log"))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    @WithMockUser(roles = "ANALISTA")
+    void analista_shouldNotAccessGeneralAdminAuditEndpoint() throws Exception {
+        mockMvc.perform(get("/admin/audit"))
                 .andExpect(status().isForbidden());
     }
 
     @Test
     @WithMockUser(roles = "ANALISTA")
-    void analista_shouldReceiveNotFoundForRemovedGeneralAuditEndpoint() throws Exception {
-        mockMvc.perform(get("/admin/audit"))
-                .andExpect(status().isNotFound());
+    void analista_shouldAccessContractAuditEndpoint() throws Exception {
+        when(auditLogService.list(any(), any(), any(), any(), any(), any(), any(), any(), any(), anyInt(), anyInt()))
+                .thenReturn(new PageResponseDTO<>(List.of(), 0, 20, 0, 0, true, true));
+
+        mockMvc.perform(get("/audit-log").param("contractId", "42"))
+                .andExpect(status().isOk());
     }
 
     @Test
-    @WithMockUser(roles = "ANALISTA")
-    void analista_shouldNotAccessContractAuditEndpoint() throws Exception {
+    @WithMockUser(roles = "ESTAGIARIO")
+    void estagiario_shouldNotAccessContractAuditEndpoint() throws Exception {
         mockMvc.perform(get("/audit-log").param("contractId", "42"))
                 .andExpect(status().isForbidden());
     }
@@ -125,9 +144,12 @@ class RbacControllerSecurityTest {
 
     @Test
     @WithMockUser(roles = "ADMIN")
-    void admin_shouldNotAccessSuperadminOnlyAllowedRegistrationsEndpoint() throws Exception {
+    void admin_shouldAccessAllowedRegistrationsAdminEndpoint() throws Exception {
+        when(allowedRegistrationService.listInvites(any(), anyInt(), anyInt()))
+                .thenReturn(new PageResponseDTO<>(List.of(), 0, 20, 0, 0, true, true));
+
         mockMvc.perform(get("/admin/allowed-registrations"))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isOk());
     }
 
     @TestConfiguration
@@ -138,6 +160,8 @@ class RbacControllerSecurityTest {
             http
                     .csrf(csrf -> csrf.disable())
                     .authorizeHttpRequests(auth -> auth
+                            .requestMatchers("/admin/audit/**").hasAnyRole("SUPERADMIN", "ADMIN")
+                            .requestMatchers("/audit-log/**").hasAnyRole("SUPERADMIN", "ADMIN", "ANALISTA")
                             .requestMatchers(HttpMethod.GET, "/**").authenticated()
                             .anyRequest().authenticated()
                     )
@@ -151,7 +175,8 @@ class RbacControllerSecurityTest {
             return new InMemoryUserDetailsManager(
                     User.withUsername("admin").password(encoder.encode("123")).roles("ADMIN").build(),
                     User.withUsername("superadmin").password(encoder.encode("123")).roles("SUPERADMIN").build(),
-                    User.withUsername("analista").password(encoder.encode("123")).roles("ANALISTA").build()
+                    User.withUsername("analista").password(encoder.encode("123")).roles("ANALISTA").build(),
+                    User.withUsername("estagiario").password(encoder.encode("123")).roles("ESTAGIARIO").build()
             );
         }
     }

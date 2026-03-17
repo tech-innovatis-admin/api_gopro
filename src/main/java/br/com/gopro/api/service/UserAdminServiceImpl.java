@@ -120,21 +120,11 @@ public class UserAdminServiceImpl implements UserAdminService {
     }
 
     private void enforceRbac(AuthenticatedUserPrincipal actor, AppUser target, AdminUserUpdateRequestDTO dto) {
-        if (actor.role() == UserRoleEnum.SUPERADMIN) {
+        if (actor.role() == UserRoleEnum.SUPERADMIN || actor.role() == UserRoleEnum.ADMIN) {
             return;
         }
 
-        if (actor.role() != UserRoleEnum.ADMIN) {
-            throw new AccessDeniedException("Acesso negado");
-        }
-
-        if (target.getRole() == UserRoleEnum.SUPERADMIN) {
-            throw new AccessDeniedException("ADMIN nao pode alterar SUPERADMIN");
-        }
-
-        if (dto.role() == UserRoleEnum.SUPERADMIN) {
-            throw new AccessDeniedException("ADMIN nao pode promover usuario para SUPERADMIN");
-        }
+        throw new AccessDeniedException("Acesso negado");
     }
 
     private AdminUserResponseDTO toDTO(AppUser user) {

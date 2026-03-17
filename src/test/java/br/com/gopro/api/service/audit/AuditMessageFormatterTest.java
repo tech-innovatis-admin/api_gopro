@@ -103,6 +103,26 @@ class AuditMessageFormatterTest {
     }
 
     @Test
+    void format_shouldBuildComebackNarrativeForBudgetTransferAudit() {
+        AuditMessage message = formatter.format(
+                AuditEventRequest.builder()
+                        .tipoAuditoria(AuditScopeEnum.CONTRACTS)
+                        .entidadePrincipal("Contrato")
+                        .entidadeId("42")
+                        .aba("Rubricas")
+                        .acao("CRIAR")
+                        .depois(Map.of(
+                                "reason", "Comeback do remanejamento #44. Motivo original: cadastro incorreto"
+                        ))
+                        .detalhesTecnicos(Map.of("resource", "budget-transfers"))
+                        .build()
+        );
+
+        assertThat(message.resumo()).isEqualTo("Comeback do remanejamento #44 registrado no contrato #42");
+        assertThat(message.descricao()).isEqualTo("Foi registrado um comeback para desfazer o remanejamento #44 na aba Rubricas.");
+    }
+
+    @Test
     void format_shouldUsePreciseProjectNarrativeWhenReliableDeltaHasSingleKnownField() {
         AuditMessage message = formatter.format(
                 AuditEventRequest.builder()

@@ -1,5 +1,6 @@
 package br.com.gopro.api.service;
 
+import br.com.gopro.api.config.AuthenticatedUserPrincipal;
 import br.com.gopro.api.dtos.BudgetTransferRequestDTO;
 import br.com.gopro.api.dtos.BudgetTransferResponseDTO;
 import br.com.gopro.api.dtos.BudgetTransferUpdateDTO;
@@ -17,6 +18,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -37,6 +40,7 @@ public class BudgetTransferServiceImpl implements BudgetTransferService {
         validateCreateRequest(dto);
         BudgetTransfer budgetTransfer = budgetTransferMapper.toEntity(dto);
         attachManagedRelationsForCreate(budgetTransfer, dto);
+        budgetTransfer.setCreatedBy(resolveAuditUserId(dto.createdBy()));
         applyDefaults(budgetTransfer);
         budgetTransfer.setIsActive(true);
         BudgetTransfer saved = budgetTransferRepository.save(budgetTransfer);
@@ -84,6 +88,7 @@ public class BudgetTransferServiceImpl implements BudgetTransferService {
         }
         budgetTransferMapper.updateEntityFromDTO(dto, budgetTransfer);
         attachManagedRelationsForUpdate(budgetTransfer, dto);
+        budgetTransfer.setUpdatedBy(resolveAuditUserId(dto.updatedBy()));
         applyDefaults(budgetTransfer);
         BudgetTransfer updated = budgetTransferRepository.save(budgetTransfer);
         return budgetTransferMapper.toDTO(updated);
@@ -178,5 +183,15 @@ public class BudgetTransferServiceImpl implements BudgetTransferService {
         if (dto.documentId() != null) {
             budgetTransfer.setDocument(documentRepository.getReferenceById(dto.documentId()));
         }
+    }
+
+    private Long resolveAuditUserId(Long fallbackUserId) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication != null && authentication.getPrincipal() instanceof AuthenticatedUserPrincipal principal) {
+            if (principal.id() != null) {
+                return principal.id();
+            }
+        }
+        return fallbackUserId;
     }
 }

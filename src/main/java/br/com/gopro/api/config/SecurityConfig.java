@@ -78,9 +78,68 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/auth/login").permitAll()
                         .requestMatchers("/register/**").permitAll()
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                        .requestMatchers("/admin/allowed-registrations/**").hasRole("SUPERADMIN")
-                        .requestMatchers("/audit-log/**").hasAnyRole("SUPERADMIN", "ADMIN")
+                        .requestMatchers("/admin/allowed-registrations/**").hasAnyRole("SUPERADMIN", "ADMIN")
+                        .requestMatchers("/admin/audit/**").hasAnyRole("SUPERADMIN", "ADMIN")
+                        .requestMatchers("/audit-log/**").hasAnyRole("SUPERADMIN", "ADMIN", "ANALISTA")
                         .requestMatchers("/admin/users/**").hasAnyRole("SUPERADMIN", "ADMIN")
+                        .requestMatchers(
+                                HttpMethod.POST,
+                                "/disbursement-schedules/**",
+                                "/goals/**",
+                                "/stages/**",
+                                "/phases/**",
+                                "/budget-categories/**",
+                                "/budget-items/**",
+                                "/budget-transfers/**",
+                                "/project-people/**",
+                                "/project-companies/**",
+                                "/documents/**",
+                                "/incomes/**",
+                                "/expenses/**"
+                        ).hasAnyRole("SUPERADMIN", "ADMIN", "ANALISTA")
+                        .requestMatchers(
+                                HttpMethod.PUT,
+                                "/disbursement-schedules/**",
+                                "/goals/**",
+                                "/stages/**",
+                                "/phases/**",
+                                "/budget-categories/**",
+                                "/budget-items/**",
+                                "/budget-transfers/**",
+                                "/project-people/**",
+                                "/project-companies/**",
+                                "/incomes/**",
+                                "/expenses/**"
+                        ).hasAnyRole("SUPERADMIN", "ADMIN", "ANALISTA")
+                        .requestMatchers(
+                                HttpMethod.PATCH,
+                                "/disbursement-schedules/**",
+                                "/goals/**",
+                                "/stages/**",
+                                "/phases/**",
+                                "/budget-categories/**",
+                                "/budget-items/**",
+                                "/budget-transfers/**",
+                                "/project-people/**",
+                                "/project-companies/**",
+                                "/incomes/**",
+                                "/expenses/**"
+                        ).hasAnyRole("SUPERADMIN", "ADMIN", "ANALISTA")
+                        .requestMatchers(
+                                HttpMethod.DELETE,
+                                "/disbursement-schedules/**",
+                                "/goals/**",
+                                "/stages/**",
+                                "/phases/**",
+                                "/budget-categories/**",
+                                "/budget-items/**",
+                                "/budget-transfers/**",
+                                "/project-people/**",
+                                "/project-companies/**",
+                                "/documents/**",
+                                "/incomes/**",
+                                "/expenses/**"
+                        ).hasAnyRole("SUPERADMIN", "ADMIN", "ANALISTA")
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
