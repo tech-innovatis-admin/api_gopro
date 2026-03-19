@@ -15,16 +15,20 @@ import java.util.Optional;
 public interface ExpenseRepository extends JpaRepository<Expense, Long> {
     Page<Expense> findAll(Pageable pageable);
     Page<Expense> findByIsActiveTrue(Pageable pageable);
-    Page<Expense> findByIsActiveTrueAndIncome_IsActiveTrueAndIncome_Project_Id(Long projectId, Pageable pageable);
+    Page<Expense> findByIsActiveTrueAndProject_Id(Long projectId, Pageable pageable);
 
-    @Query("select e.income.project.id from Expense e where e.id = :id")
+    @Query("""
+    select coalesce(e.project.id, i.project.id)
+    from Expense e
+    left join e.income i
+    where e.id = :id
+""")
     Optional<Long> findProjectIdById(@Param("id") Long id);
 
     @Query("""
     select coalesce(sum(e.amount), 0)
     from Expense e
-    join e.income i
-    where i.project.id = :projectId
+    where e.project.id = :projectId
 """)
     BigDecimal sumExpenseByProjectId(@Param("projectId") Long projectId);
 }

@@ -37,7 +37,7 @@ public class Partner {
     @Column(name = "cnpj", nullable = false, length = 14)
     private String cnpj;
 
-    @Column(name = "email", nullable = false)
+    @Column(name = "email")
     private String email;
 
     @Column(name = "phone", length = 50)

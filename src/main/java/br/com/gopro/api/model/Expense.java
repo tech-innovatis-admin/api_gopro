@@ -31,7 +31,11 @@ public class Expense {
     private BudgetCategory category;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "income_id", nullable = false, foreignKey = @ForeignKey(name = "fk_expense_income_id"))
+    @JoinColumn(name = "project_id", nullable = false, foreignKey = @ForeignKey(name = "fk_expense_project_id"))
+    private Project project;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "income_id", foreignKey = @ForeignKey(name = "fk_expense_income_id"))
     private Income income;
 
     @Column(name = "expense_date", nullable = false)

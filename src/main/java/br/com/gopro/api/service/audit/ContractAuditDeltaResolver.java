@@ -36,7 +36,8 @@ public class ContractAuditDeltaResolver {
 
     private static final Map<String, Set<String>> RESOURCE_IGNORED_FIELDS = Map.ofEntries(
             entry("projects", Set.of("totalReceived", "totalExpenses", "saldo")),
-            entry("documents", Set.of("bucket", "s3Key", "sha256"))
+            entry("documents", Set.of("bucket", "s3Key", "sha256")),
+            entry("expenses", Set.of("project"))
     );
 
     private static final Map<String, Map<String, String>> FIELD_LABELS = Map.ofEntries(
@@ -110,7 +111,9 @@ public class ContractAuditDeltaResolver {
                     entry("descricao", "Descricao da meta"),
                     entry("dataInicio", "Data de inicio"),
                     entry("dataFim", "Data de termino"),
-                    entry("dataConclusao", "Data de conclusao")
+                    entry("dataConclusao", "Data de conclusao"),
+                    entry("hasFinancialValue", "Meta com valor financeiro"),
+                    entry("financialAmount", "Valor financeiro da meta")
             )),
             entry("stages", Map.ofEntries(
                     entry("goal", "Meta"),
@@ -119,7 +122,9 @@ public class ContractAuditDeltaResolver {
                     entry("descricao", "Descricao da etapa"),
                     entry("dataInicio", "Data de inicio"),
                     entry("dataFim", "Data de termino"),
-                    entry("dataConclusao", "Data de conclusao")
+                    entry("dataConclusao", "Data de conclusao"),
+                    entry("hasFinancialValue", "Etapa com valor financeiro"),
+                    entry("financialAmount", "Valor financeiro da etapa")
             )),
             entry("phases", Map.ofEntries(
                     entry("stage", "Etapa"),
@@ -145,8 +150,8 @@ public class ContractAuditDeltaResolver {
                     entry("expenseDate", "Data da despesa"),
                     entry("quantity", "Quantidade"),
                     entry("amount", "Valor da despesa"),
-                    entry("person", "Pessoa"),
-                    entry("organization", "Organizacao"),
+                    entry("person", "Pessoa vinculada"),
+                    entry("organization", "Empresa vinculada"),
                     entry("description", "Descricao da despesa"),
                     entry("invoiceNumber", "Numero da nota"),
                     entry("invoiceDate", "Data da nota"),

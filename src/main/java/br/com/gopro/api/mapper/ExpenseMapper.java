@@ -24,6 +24,7 @@ public class ExpenseMapper {
     public ExpenseResponseDTO toDTO(Expense expense) {
         return new ExpenseResponseDTO(
                 expense.getId(),
+                expense.getProject() != null ? expense.getProject().getId() : null,
                 expense.getBudgetItem() != null ? expense.getBudgetItem().getId() : null,
                 expense.getCategory() != null ? expense.getCategory().getId() : null,
                 expense.getIncome() != null ? expense.getIncome().getId() : null,

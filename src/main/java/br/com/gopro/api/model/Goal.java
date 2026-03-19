@@ -7,6 +7,7 @@ import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
@@ -42,6 +43,12 @@ public class Goal {
 
     @Column(name = "data_conclusao")
     private LocalDate dataConclusao;
+
+    @Column(name = "has_financial_value", nullable = false)
+    private Boolean hasFinancialValue;
+
+    @Column(name = "financial_amount", precision = 15, scale = 2)
+    private BigDecimal financialAmount;
 
     @Column(name = "is_active")
     private Boolean isActive;

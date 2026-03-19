@@ -52,6 +52,15 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class ContractAuditChangeEnricher {
 
+    private static final String BUDGET_ITEM_META_IDS_NOTES_PREFIX = "[[GOPRO_META_IDS:";
+    private static final String BUDGET_ITEM_META_IDS_NOTES_SUFFIX = "]]";
+    private static final String EMPTY_PAYMENT_LINK_LABEL = "Sem v\u00EDnculo";
+    private static final String EMPTY_GOAL_LINK_LABEL = "Sem v\u00EDnculo com metas";
+    private static final String EMPTY_GOAL_FINANCIAL_VALUE_LABEL = "Sem valor financeiro";
+    private static final String EMPTY_NOTES_LABEL = "Sem observa\u00E7\u00F5es";
+    private static final String BUDGET_ITEM_GOALS_LABEL = "Metas vinculadas";
+    private static final String BUDGET_ITEM_NOTES_AND_GOALS_LABEL = "Observa\u00E7\u00F5es e metas vinculadas";
+
     private static final TypeReference<List<LinkedHashMap<String, Object>>> CHANGE_LIST_TYPE = new TypeReference<>() {
     };
     private static final TypeReference<LinkedHashMap<String, Object>> MAP_TYPE = new TypeReference<>() {
@@ -303,6 +312,7 @@ public class ContractAuditChangeEnricher {
         switch (path) {
             case "rubrica" -> collectLongValues(change, lookupPlan.budgetCategoryIds);
             case "meta" -> collectLongValues(change, lookupPlan.goalIds);
+            case "observacoes" -> collectBudgetItemGoalIdsFromNotes(change, lookupPlan.goalIds);
             default -> {
                 // ignore
             }
@@ -324,11 +334,25 @@ public class ContractAuditChangeEnricher {
             case "item de rubrica" -> collectLongValues(change, lookupPlan.budgetItemIds);
             case "rubrica" -> collectLongValues(change, lookupPlan.budgetCategoryIds);
             case "receita" -> collectLongValues(change, lookupPlan.incomeIds);
-            case "pessoa" -> collectLongValues(change, lookupPlan.peopleIds);
-            case "organizacao" -> collectLongValues(change, lookupPlan.organizationIds);
+            case "pessoa", "pessoa vinculada" -> collectLongValues(change, lookupPlan.peopleIds);
+            case "organizacao", "organizacao vinculada", "empresa", "empresa vinculada" ->
+                    collectLongValues(change, lookupPlan.organizationIds);
             case "documento" -> collectUuidValues(change, lookupPlan.documentIds);
             default -> {
                 // ignore
+            }
+        }
+    }
+
+    private void collectBudgetItemGoalIdsFromNotes(Map<String, Object> change, Set<Long> target) {
+        addBudgetItemGoalIds(change.get("de"), target);
+        addBudgetItemGoalIds(change.get("para"), target);
+    }
+
+    private void addBudgetItemGoalIds(Object rawValue, Set<Long> target) {
+        for (Long goalId : parseBudgetItemNotes(rawValue).goalIds()) {
+            if (goalId != null) {
+                target.add(goalId);
             }
         }
     }
@@ -399,6 +423,11 @@ public class ContractAuditChangeEnricher {
     }
 
     private boolean enrichChange(ParsedLog parsedLog, Map<String, Object> change, LookupCatalog catalog) {
+        Boolean specialHandling = enrichBudgetItemNotesChange(parsedLog, change, catalog);
+        if (specialHandling != null) {
+            return specialHandling;
+        }
+
         boolean updated = false;
 
         String path = readString(change.get("caminho"));
@@ -423,6 +452,49 @@ public class ContractAuditChangeEnricher {
         return updated;
     }
 
+    private Boolean enrichBudgetItemNotesChange(
+            ParsedLog parsedLog,
+            Map<String, Object> change,
+            LookupCatalog catalog
+    ) {
+        if (!"budget-items".equals(parsedLog.resource())) {
+            return null;
+        }
+
+        String path = normalizeToken(readString(change.get("caminho")));
+        if (!"observacoes".equals(path)) {
+            return null;
+        }
+
+        BudgetItemNotesSnapshot before = parseBudgetItemNotes(change.get("de"));
+        BudgetItemNotesSnapshot after = parseBudgetItemNotes(change.get("para"));
+        if (!before.hasGoalMetadata() && !after.hasGoalMetadata()) {
+            return null;
+        }
+
+        boolean metaChanged = !Objects.equals(before.goalIds(), after.goalIds());
+        boolean notesChanged = !Objects.equals(before.cleanedNotes(), after.cleanedNotes());
+        boolean updated = false;
+
+        if (metaChanged && notesChanged) {
+            updated |= putDisplayValue(change, "label", BUDGET_ITEM_NOTES_AND_GOALS_LABEL);
+            updated |= putDisplayValue(change, "deLabel", formatBudgetItemNotesSummary(before, catalog));
+            updated |= putDisplayValue(change, "paraLabel", formatBudgetItemNotesSummary(after, catalog));
+            return updated;
+        }
+
+        if (metaChanged) {
+            updated |= putDisplayValue(change, "label", BUDGET_ITEM_GOALS_LABEL);
+            updated |= putDisplayValue(change, "deLabel", formatGoalSelectionLabel(before.goalIds(), catalog));
+            updated |= putDisplayValue(change, "paraLabel", formatGoalSelectionLabel(after.goalIds(), catalog));
+            return updated;
+        }
+
+        updated |= putDisplayValue(change, "deLabel", formatNotesLabel(before.cleanedNotes()));
+        updated |= putDisplayValue(change, "paraLabel", formatNotesLabel(after.cleanedNotes()));
+        return updated;
+    }
+
     private String resolveFriendlyValue(
             ParsedLog parsedLog,
             Map<String, Object> change,
@@ -430,13 +502,15 @@ public class ContractAuditChangeEnricher {
             boolean before,
             LookupCatalog catalog
     ) {
-        if (rawValue == null) {
-            return null;
-        }
-
         String path = normalizeToken(readString(change.get("caminho")));
         if (path == null) {
+            if (rawValue == null) {
+                return null;
+            }
             return resolveGenericValue(rawValue);
+        }
+        if (rawValue == null) {
+            return resolveEmptyValueLabel(parsedLog.resource(), path);
         }
 
         return switch (parsedLog.resource()) {
@@ -466,6 +540,7 @@ public class ContractAuditChangeEnricher {
                     switch (path) {
                         case "rubrica" -> lookupLong(catalog.budgetCategoryLabels(), rawValue);
                         case "meta" -> lookupLong(catalog.goalLabels(), rawValue);
+                        case "metas vinculadas" -> formatGoalSelectionLabel(parseBudgetItemNotes(rawValue).goalIds(), catalog);
                         default -> null;
                     },
                     resolveGenericValue(rawValue)
@@ -490,8 +565,9 @@ public class ContractAuditChangeEnricher {
                         case "item de rubrica" -> lookupLong(catalog.budgetItemLabels(), rawValue);
                         case "rubrica" -> lookupLong(catalog.budgetCategoryLabels(), rawValue);
                         case "receita" -> lookupLong(catalog.incomeLabels(), rawValue);
-                        case "pessoa" -> lookupLong(catalog.peopleLabels(), rawValue);
-                        case "organizacao" -> lookupLong(catalog.organizationLabels(), rawValue);
+                        case "pessoa", "pessoa vinculada" -> lookupLong(catalog.peopleLabels(), rawValue);
+                        case "organizacao", "organizacao vinculada", "empresa", "empresa vinculada" ->
+                                lookupLong(catalog.organizationLabels(), rawValue);
                         case "documento" -> lookupUuid(catalog.documentLabels(), rawValue);
                         default -> null;
                     },
@@ -559,6 +635,109 @@ public class ContractAuditChangeEnricher {
             return "Não";
         }
         return null;
+    }
+
+    private String resolveEmptyValueLabel(String resource, String path) {
+        if (resource == null || path == null) {
+            return null;
+        }
+
+        return switch (resource) {
+            case "expenses" -> switch (path) {
+                case "pessoa", "pessoa vinculada", "organizacao", "organizacao vinculada", "empresa", "empresa vinculada" ->
+                        EMPTY_PAYMENT_LINK_LABEL;
+                default -> null;
+            };
+            case "budget-items" -> switch (path) {
+                case "meta", "metas vinculadas" -> EMPTY_GOAL_LINK_LABEL;
+                case "observacoes" -> EMPTY_NOTES_LABEL;
+                default -> null;
+            };
+            case "goals" -> "valor financeiro da meta".equals(path) ? EMPTY_GOAL_FINANCIAL_VALUE_LABEL : null;
+            case "stages" -> "valor financeiro da etapa".equals(path) ? EMPTY_GOAL_FINANCIAL_VALUE_LABEL : null;
+            default -> null;
+        };
+    }
+
+    private BudgetItemNotesSnapshot parseBudgetItemNotes(Object rawValue) {
+        String notes = readString(rawValue);
+        if (notes == null) {
+            return new BudgetItemNotesSnapshot(List.of(), null, false);
+        }
+
+        List<String> lines = new ArrayList<>();
+        for (String line : notes.split("\\r?\\n")) {
+            String trimmed = trimToNull(line);
+            if (trimmed != null) {
+                lines.add(trimmed);
+            }
+        }
+
+        Set<Long> goalIds = new LinkedHashSet<>();
+        List<String> remainingLines = new ArrayList<>();
+        boolean hasGoalMetadata = false;
+
+        for (String line : lines) {
+            if (line.startsWith(BUDGET_ITEM_META_IDS_NOTES_PREFIX) && line.endsWith(BUDGET_ITEM_META_IDS_NOTES_SUFFIX)) {
+                hasGoalMetadata = true;
+                String serializedIds = line.substring(
+                        BUDGET_ITEM_META_IDS_NOTES_PREFIX.length(),
+                        line.length() - BUDGET_ITEM_META_IDS_NOTES_SUFFIX.length()
+                );
+                for (String value : serializedIds.split(",")) {
+                    Long goalId = parseLong(value);
+                    if (goalId != null) {
+                        goalIds.add(goalId);
+                    }
+                }
+                continue;
+            }
+            remainingLines.add(line);
+        }
+
+        return new BudgetItemNotesSnapshot(
+                List.copyOf(goalIds),
+                remainingLines.isEmpty() ? null : String.join("\n", remainingLines),
+                hasGoalMetadata
+        );
+    }
+
+    private String formatGoalSelectionLabel(List<Long> goalIds, LookupCatalog catalog) {
+        if (goalIds == null || goalIds.isEmpty()) {
+            return EMPTY_GOAL_LINK_LABEL;
+        }
+
+        List<String> labels = new ArrayList<>();
+        for (Long goalId : goalIds) {
+            if (goalId == null) {
+                continue;
+            }
+            labels.add(firstNonBlank(catalog.goalLabels().get(goalId), "Meta #" + goalId));
+        }
+        return labels.isEmpty() ? EMPTY_GOAL_LINK_LABEL : String.join(", ", labels);
+    }
+
+    private String formatBudgetItemNotesSummary(BudgetItemNotesSnapshot snapshot, LookupCatalog catalog) {
+        return "Metas: "
+                + formatGoalSelectionLabel(snapshot.goalIds(), catalog)
+                + " | Observa\u00E7\u00F5es: "
+                + formatNotesLabel(snapshot.cleanedNotes());
+    }
+
+    private String formatNotesLabel(String notes) {
+        return firstNonBlank(trimToNull(notes), EMPTY_NOTES_LABEL);
+    }
+
+    private boolean putDisplayValue(Map<String, Object> change, String key, String value) {
+        Object current = change.get(key);
+        if (value == null) {
+            return change.remove(key) != null;
+        }
+        if (Objects.equals(current, value)) {
+            return false;
+        }
+        change.put(key, value);
+        return true;
     }
 
     private Map<Long, String> loadPartnerLabels(Set<Long> ids) {
@@ -917,6 +1096,13 @@ public class ContractAuditChangeEnricher {
             Map<Long, String> phaseLabels,
             Map<Long, String> incomeLabels,
             Map<UUID, String> documentLabels
+    ) {
+    }
+
+    private record BudgetItemNotesSnapshot(
+            List<Long> goalIds,
+            String cleanedNotes,
+            boolean hasGoalMetadata
     ) {
     }
 

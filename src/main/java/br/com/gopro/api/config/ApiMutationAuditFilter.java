@@ -901,6 +901,10 @@ public class ApiMutationAuditFilter extends OncePerRequestFilter {
                 Long id = parseLong(idSegment);
                 if (id != null) return expenseRepository.findProjectIdById(id).orElse(null);
 
+                Long projectId = extractLong(body, "projectId");
+                if (projectId != null) {
+                    return projectId;
+                }
                 Long incomeId = extractLong(body, "incomeId");
                 if (incomeId != null) {
                     return incomeRepository.findProjectIdById(incomeId).orElse(null);

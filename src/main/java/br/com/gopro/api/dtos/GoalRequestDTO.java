@@ -3,6 +3,7 @@ package br.com.gopro.api.dtos;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 
 public record GoalRequestDTO(
@@ -13,5 +14,7 @@ public record GoalRequestDTO(
         LocalDate dataInicio,
         LocalDate dataFim,
         LocalDate dataConclusao,
+        Boolean hasFinancialValue,
+        BigDecimal financialAmount,
         Long createdBy
 ) {}

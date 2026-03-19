@@ -4,6 +4,7 @@ import br.com.gopro.api.model.AuditLog;
 import br.com.gopro.api.model.BudgetCategory;
 import br.com.gopro.api.model.Company;
 import br.com.gopro.api.model.Goal;
+import br.com.gopro.api.model.Organization;
 import br.com.gopro.api.model.Partner;
 import br.com.gopro.api.model.People;
 import br.com.gopro.api.model.Project;
@@ -209,6 +210,78 @@ class ContractAuditChangeEnricherTest {
         assertThat(peopleChanges.get(1))
                 .containsEntry("deLabel", "Bolsista")
                 .containsEntry("paraLabel", "Diretor");
+    }
+
+    @Test
+    void enrich_budgetItemMetaNotesShouldExposeLinkedGoalsInsteadOfTechnicalMetadata() throws Exception {
+        Goal firstGoal = new Goal();
+        firstGoal.setId(11L);
+        firstGoal.setNumero(1);
+        firstGoal.setTitulo("Mobilizacao inicial");
+
+        Goal secondGoal = new Goal();
+        secondGoal.setId(12L);
+        secondGoal.setNumero(2);
+        secondGoal.setTitulo("Execucao assistida");
+
+        when(goalRepository.findAllById(any())).thenReturn(List.of(firstGoal, secondGoal));
+
+        AuditLog budgetItemLog = auditLog(
+                8L,
+                "budget-items",
+                List.of(
+                        change(
+                                "Observacoes",
+                                "[[GOPRO_META_IDS:11]]",
+                                "[[GOPRO_META_IDS:11,12]]"
+                        )
+                ),
+                null,
+                null
+        );
+
+        Map<Long, String> enriched = enricher.enrich(List.of(budgetItemLog), Map.of());
+        List<LinkedHashMap<String, Object>> budgetChanges = parseChanges(enriched.get(8L));
+
+        assertThat(budgetChanges.get(0))
+                .containsEntry("label", "Metas vinculadas")
+                .containsEntry("deLabel", "Meta 1 - Mobilizacao inicial")
+                .containsEntry("paraLabel", "Meta 1 - Mobilizacao inicial, Meta 2 - Execucao assistida");
+    }
+
+    @Test
+    void enrich_expenseLinksShouldExposeFriendlyLabelsForPersonCompanyAndNoLink() throws Exception {
+        People person = new People();
+        person.setId(44L);
+        person.setFullName("Maria Silva");
+
+        Organization organization = new Organization();
+        organization.setId(81L);
+        organization.setTradeName("Empresa Horizonte");
+
+        when(peopleRepository.findAllById(any())).thenReturn(List.of(person));
+        when(organizationRepository.findAllById(any())).thenReturn(List.of(organization));
+
+        AuditLog expenseLog = auditLog(
+                9L,
+                "expenses",
+                List.of(
+                        change("Pessoa vinculada", "44", null),
+                        change("Empresa vinculada", null, "81")
+                ),
+                null,
+                null
+        );
+
+        Map<Long, String> enriched = enricher.enrich(List.of(expenseLog), Map.of());
+        List<LinkedHashMap<String, Object>> expenseChanges = parseChanges(enriched.get(9L));
+
+        assertThat(expenseChanges.get(0))
+                .containsEntry("deLabel", "Maria Silva")
+                .containsEntry("paraLabel", "Sem vínculo");
+        assertThat(expenseChanges.get(1))
+                .containsEntry("deLabel", "Sem vínculo")
+                .containsEntry("paraLabel", "Empresa Horizonte");
     }
 
     @Test

@@ -7,6 +7,7 @@ import java.util.UUID;
 
 public record ExpenseResponseDTO(
         Long id,
+        Long projectId,
         Long budgetItemId,
         Long categoryId,
         Long incomeId,

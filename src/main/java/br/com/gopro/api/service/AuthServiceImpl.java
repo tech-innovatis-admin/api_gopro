@@ -23,6 +23,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDateTime;
+import java.util.Locale;
 import java.util.Map;
 
 @Service
@@ -47,11 +48,13 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     public AuthLoginResponseDTO login(AuthLoginRequestDTO dto, HttpServletRequest request) {
-        String rateLimitKey = "login:" + extractClientIp(request);
-        rateLimitService.checkRateLimit(rateLimitKey, loginRateLimitMaxAttempts, rateLimitWindowSeconds);
+        String normalizedLogin = normalizeLogin(dto.login());
+        String rateLimitKey = buildLoginRateLimitKey(normalizedLogin, request);
+        rateLimitService.ensureWithinLimit(rateLimitKey, loginRateLimitMaxAttempts, rateLimitWindowSeconds);
 
         AppUser user = appUserRepository.findByLogin(dto.login().trim())
                 .orElseThrow(() -> {
+                    rateLimitService.registerAttempt(rateLimitKey, rateLimitWindowSeconds);
                     auditLogService.log(AuditEventRequest.builder()
                                     .actorUserId(null)
                                     .tipoAuditoria(AuditScopeEnum.SYSTEM)
@@ -71,6 +74,7 @@ public class AuthServiceImpl implements AuthService {
                 });
 
         if (!Boolean.TRUE.equals(user.getIsActive()) || user.getStatus() != UserStatusEnum.ACTIVE) {
+            rateLimitService.registerAttempt(rateLimitKey, rateLimitWindowSeconds);
             auditLogService.log(AuditEventRequest.builder()
                             .actorUserId(user.getId())
                             .tipoAuditoria(AuditScopeEnum.SYSTEM)
@@ -91,6 +95,7 @@ public class AuthServiceImpl implements AuthService {
         }
 
         if (!passwordEncoder.matches(dto.password(), user.getPasswordHash())) {
+            rateLimitService.registerAttempt(rateLimitKey, rateLimitWindowSeconds);
             auditLogService.log(AuditEventRequest.builder()
                             .actorUserId(user.getId())
                             .tipoAuditoria(AuditScopeEnum.SYSTEM)
@@ -110,6 +115,7 @@ public class AuthServiceImpl implements AuthService {
             throw new UnauthorizedException(GENERIC_INVALID_CREDENTIALS);
         }
 
+        rateLimitService.reset(rateLimitKey);
         user.setLastLoginAt(LocalDateTime.now());
         appUserRepository.save(user);
 
@@ -201,5 +207,16 @@ public class AuthServiceImpl implements AuthService {
             return forwardedFor.split(",")[0].trim();
         }
         return request.getRemoteAddr();
+    }
+
+    private String buildLoginRateLimitKey(String normalizedLogin, HttpServletRequest request) {
+        return "login:" + extractClientIp(request) + ":" + normalizedLogin;
+    }
+
+    private String normalizeLogin(String login) {
+        if (login == null || login.isBlank()) {
+            return "unknown";
+        }
+        return login.trim().toLowerCase(Locale.ROOT);
     }
 }

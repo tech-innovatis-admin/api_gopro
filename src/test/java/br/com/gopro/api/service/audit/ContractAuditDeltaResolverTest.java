@@ -4,6 +4,7 @@ import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -136,6 +137,54 @@ class ContractAuditDeltaResolverTest {
     }
 
     @Test
+    void resolve_goalFinancialUpdate_shouldReturnFriendlyFinancialDelta() {
+        Map<String, Object> before = new HashMap<>();
+        before.put("hasFinancialValue", false);
+        before.put("financialAmount", null);
+
+        Map<String, Object> after = new HashMap<>();
+        after.put("hasFinancialValue", true);
+        after.put("financialAmount", new BigDecimal("15000.00"));
+
+        ContractAuditDeltaResolver.ContractAuditDelta result = new ContractAuditDeltaResolver().resolve(
+                "goals",
+                "ATUALIZAR",
+                before,
+                after
+        );
+
+        assertThat(result.reliable()).isTrue();
+        assertThat(result.changes()).containsExactlyInAnyOrder(
+                new AuditFieldChange("Meta com valor financeiro", false, true, "EDITADO"),
+                new AuditFieldChange("Valor financeiro da meta", null, "15000", "ADICIONADO")
+        );
+    }
+
+    @Test
+    void resolve_stageFinancialUpdate_shouldReturnFriendlyStageFinancialDelta() {
+        Map<String, Object> before = new HashMap<>();
+        before.put("hasFinancialValue", false);
+        before.put("financialAmount", null);
+
+        Map<String, Object> after = new HashMap<>();
+        after.put("hasFinancialValue", true);
+        after.put("financialAmount", new BigDecimal("3200.00"));
+
+        ContractAuditDeltaResolver.ContractAuditDelta result = new ContractAuditDeltaResolver().resolve(
+                "stages",
+                "ATUALIZAR",
+                before,
+                after
+        );
+
+        assertThat(result.reliable()).isTrue();
+        assertThat(result.changes()).containsExactlyInAnyOrder(
+                new AuditFieldChange("Etapa com valor financeiro", false, true, "EDITADO"),
+                new AuditFieldChange("Valor financeiro da etapa", null, "3200", "ADICIONADO")
+        );
+    }
+
+    @Test
     void resolve_projectPeopleUpdate_shouldReturnFriendlyPeopleDelta() {
         ContractAuditDeltaResolver.ContractAuditDelta result = new ContractAuditDeltaResolver().resolve(
                 "project-people",
@@ -148,6 +197,30 @@ class ContractAuditDeltaResolverTest {
         assertThat(result.changes()).containsExactlyInAnyOrder(
                 new AuditFieldChange("Pessoa", "10", "12", "EDITADO"),
                 new AuditFieldChange("Valor base", "500", "650", "EDITADO")
+        );
+    }
+
+    @Test
+    void resolve_expenseLinkUpdate_shouldUseFriendlyPaymentLinkLabels() {
+        Map<String, Object> before = new HashMap<>();
+        before.put("person", 10L);
+        before.put("organization", null);
+
+        Map<String, Object> after = new HashMap<>();
+        after.put("person", null);
+        after.put("organization", 22L);
+
+        ContractAuditDeltaResolver.ContractAuditDelta result = new ContractAuditDeltaResolver().resolve(
+                "expenses",
+                "ATUALIZAR",
+                before,
+                after
+        );
+
+        assertThat(result.reliable()).isTrue();
+        assertThat(result.changes()).containsExactlyInAnyOrder(
+                new AuditFieldChange("Pessoa vinculada", "10", null, "REMOVIDO"),
+                new AuditFieldChange("Empresa vinculada", null, "22", "ADICIONADO")
         );
     }
 

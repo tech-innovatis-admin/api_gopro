@@ -30,6 +30,7 @@ public class PartnerServiceImpl implements PartnerService {
         Partner partner = partnerMapper.toEntity(dto);
 
         partner.setCnpj(NormalizeUtils.normalizeCnpj(dto.cnpj()));
+        partner.setEmail(NormalizeUtils.normalizeOrNull(dto.email()));
         partner.setPhone(NormalizeUtils.normalizeOrNull(NormalizeUtils.normalizePhone(dto.phone())));
         partner.setAddress(NormalizeUtils.normalizeOrNull(dto.address()));
         partner.setIsActive(true);
@@ -93,6 +94,7 @@ public class PartnerServiceImpl implements PartnerService {
         if (dto.cnpj() != null) {
             partner.setCnpj(NormalizeUtils.normalizeCnpj(dto.cnpj()));
         }
+        partner.setEmail(NormalizeUtils.normalizeOrNull(dto.email()));
         if (dto.phone() != null) {
             partner.setPhone(NormalizeUtils.normalizeOrNull(NormalizeUtils.normalizePhone(dto.phone())));
         }

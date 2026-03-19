@@ -5,6 +5,7 @@ import java.time.LocalDate;
 import java.util.UUID;
 
 public record ExpenseUpdateDTO(
+        Long projectId,
         Long budgetItemId,
         Long categoryId,
         Long incomeId,

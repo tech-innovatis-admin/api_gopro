@@ -8,19 +8,20 @@ import jakarta.validation.constraints.Size;
 
 public record PartnerRequestDTO(
         String acronym,
-        @NotBlank(message = "Nome é obrigatório") String name,
-        @NotBlank(message = "Nome fantasia é obrigatório") String tradeName,
-        @NotNull(message = "Tipo de parceiro é obrigatório") PartnersTypeEnum partnersType,
-        @NotBlank(message = "CNPJ é obrigatório")
+        @NotBlank(message = "Nome e obrigatorio") String name,
+        @NotBlank(message = "Nome fantasia e obrigatorio") String tradeName,
+        @NotNull(message = "Tipo de parceiro e obrigatorio") PartnersTypeEnum partnersType,
+        @NotBlank(message = "CNPJ e obrigatorio")
         @Size(min = 14, max = 14, message = "CNPJ deve ter 14 caracteres") String cnpj,
-        @Email(message = "E-mail é obrigatório") String email,
-        @Size(max = 50, message = "Telefone deve ter no máximo 50 caracteres") String phone,
-        @Size(max = 400, message = "Endereço deve ter no máximo 400 caracteres") String address,
-        @Size(max = 300, message = "Site deve ter no máximo 300 caracteres") String site,
-        @NotBlank(message = "Cidade é obrigatório")
-        @Size(max = 100, message = "Cidade deve ter no máximo 100 caracteres") String city,
-        @NotBlank(message = "Estado é obrigatório")
-        @Size(max = 50, message = "Estado deve ter no máximo 50 caracteres") String state,
+        @Email(message = "E-mail invalido")
+        @Size(max = 255, message = "E-mail deve ter no maximo 255 caracteres") String email,
+        @Size(max = 50, message = "Telefone deve ter no maximo 50 caracteres") String phone,
+        @Size(max = 400, message = "Endereco deve ter no maximo 400 caracteres") String address,
+        @Size(max = 300, message = "Site deve ter no maximo 300 caracteres") String site,
+        @NotBlank(message = "Cidade e obrigatorio")
+        @Size(max = 100, message = "Cidade deve ter no maximo 100 caracteres") String city,
+        @NotBlank(message = "Estado e obrigatorio")
+        @Size(max = 50, message = "Estado deve ter no maximo 50 caracteres") String state,
         Boolean isActive,
         Long createdBy
 ) {}

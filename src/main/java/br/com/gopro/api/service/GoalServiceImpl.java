@@ -9,25 +9,32 @@ import br.com.gopro.api.exception.ResourceNotFoundException;
 import br.com.gopro.api.mapper.GoalMapper;
 import br.com.gopro.api.model.Goal;
 import br.com.gopro.api.repository.GoalRepository;
+import br.com.gopro.api.repository.StageRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
+import java.text.NumberFormat;
+import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Locale;
 
 @Service
 @RequiredArgsConstructor
 public class GoalServiceImpl implements GoalService {
 
     private final GoalRepository goalRepository;
+    private final StageRepository stageRepository;
     private final GoalMapper goalMapper;
 
     @Override
     public GoalResponseDTO createGoal(GoalRequestDTO dto) {
         Goal goal = goalMapper.toEntity(dto);
+        normalizeFinancialFields(goal);
         goal.setIsActive(true);
         Goal saved = goalRepository.save(goal);
         return goalMapper.toDTO(saved);
@@ -73,6 +80,7 @@ public class GoalServiceImpl implements GoalService {
             throw new BusinessException("Nao e possivel atualizar uma meta inativa");
         }
         goalMapper.updateEntityFromDTO(dto, goal);
+        normalizeFinancialFields(goal);
         Goal updated = goalRepository.save(goal);
         return goalMapper.toDTO(updated);
     }
@@ -138,5 +146,47 @@ public class GoalServiceImpl implements GoalService {
         if (size <= 0 || size > 100) {
             throw new BusinessException("Tamanho da pagina deve estar entre 1 e 100");
         }
+    }
+
+    private void normalizeFinancialFields(Goal goal) {
+        Long goalId = goal.getId();
+        BigDecimal allocatedStageAmount = goalId == null
+                ? BigDecimal.ZERO
+                : stageRepository.sumActiveFinancialAmountByGoalId(goalId).setScale(2, RoundingMode.HALF_UP);
+
+        if (!Boolean.TRUE.equals(goal.getHasFinancialValue())) {
+            if (allocatedStageAmount.signum() > 0) {
+                throw new BusinessException(
+                        "Nao e possivel remover o valor financeiro da meta porque ja existem etapas com "
+                                + formatCurrency(allocatedStageAmount) + " vinculados."
+                );
+            }
+            goal.setHasFinancialValue(false);
+            goal.setFinancialAmount(null);
+            return;
+        }
+
+        BigDecimal amount = goal.getFinancialAmount();
+        if (amount == null) {
+            throw new BusinessException("Informe o valor financeiro da meta.");
+        }
+        if (amount.signum() <= 0) {
+            throw new BusinessException("O valor financeiro da meta deve ser maior que zero.");
+        }
+
+        BigDecimal normalizedAmount = amount.setScale(2, RoundingMode.HALF_UP);
+        if (normalizedAmount.compareTo(allocatedStageAmount) < 0) {
+            throw new BusinessException(
+                    "O valor financeiro da meta nao pode ser menor que a soma das etapas. Valor minimo atual: "
+                            + formatCurrency(allocatedStageAmount) + "."
+            );
+        }
+
+        goal.setHasFinancialValue(true);
+        goal.setFinancialAmount(normalizedAmount);
+    }
+
+    private String formatCurrency(BigDecimal amount) {
+        return NumberFormat.getCurrencyInstance(new Locale("pt", "BR")).format(amount);
     }
 }

@@ -15,6 +15,7 @@ import br.com.gopro.api.repository.ExpenseRepository;
 import br.com.gopro.api.repository.IncomeRepository;
 import br.com.gopro.api.repository.OrganizationRepository;
 import br.com.gopro.api.repository.PeopleRepository;
+import br.com.gopro.api.repository.ProjectRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -35,6 +36,7 @@ public class ExpenseServiceImpl implements ExpenseService {
     private final PeopleRepository peopleRepository;
     private final OrganizationRepository organizationRepository;
     private final DocumentRepository documentRepository;
+    private final ProjectRepository projectRepository;
 
     @Override
     public ExpenseResponseDTO createExpense(ExpenseRequestDTO dto) {
@@ -51,7 +53,7 @@ public class ExpenseServiceImpl implements ExpenseService {
         Pageable pageable = PageRequest.of(page, size);
         Page<Expense> pageResult = projectId == null
                 ? expenseRepository.findByIsActiveTrue(pageable)
-                : expenseRepository.findByIsActiveTrueAndIncome_IsActiveTrueAndIncome_Project_Id(projectId, pageable);
+                : expenseRepository.findByIsActiveTrueAndProject_Id(projectId, pageable);
         List<ExpenseResponseDTO> content = pageResult.getContent().stream()
                 .map(expenseMapper::toDTO)
                 .toList();
@@ -123,34 +125,63 @@ public class ExpenseServiceImpl implements ExpenseService {
     }
 
     private void applyReferencesOnCreate(Expense expense, ExpenseRequestDTO dto) {
+        expense.setProject(projectRepository.getReferenceById(requireProjectId(dto.projectId(), dto.incomeId())));
         expense.setBudgetItem(budgetItemRepository.getReferenceById(dto.budgetItemId()));
         expense.setCategory(budgetCategoryRepository.getReferenceById(dto.categoryId()));
-        expense.setIncome(incomeRepository.getReferenceById(dto.incomeId()));
-        expense.setPerson(dto.personId() != null ? peopleRepository.getReferenceById(dto.personId()) : null);
-        expense.setOrganization(
-                dto.organizationId() != null ? organizationRepository.getReferenceById(dto.organizationId()) : null
-        );
+        expense.setIncome(null);
+        applyPaymentLink(expense, dto.personId(), dto.organizationId());
         expense.setDocument(dto.documentId() != null ? documentRepository.getReferenceById(dto.documentId()) : null);
     }
 
     private void applyReferencesOnUpdate(Expense expense, ExpenseUpdateDTO dto) {
+        Long resolvedProjectId = resolveProjectId(dto.projectId(), dto.incomeId());
+        if (resolvedProjectId != null) {
+            expense.setProject(projectRepository.getReferenceById(resolvedProjectId));
+            expense.setIncome(null);
+        }
         if (dto.budgetItemId() != null) {
             expense.setBudgetItem(budgetItemRepository.getReferenceById(dto.budgetItemId()));
         }
         if (dto.categoryId() != null) {
             expense.setCategory(budgetCategoryRepository.getReferenceById(dto.categoryId()));
         }
-        if (dto.incomeId() != null) {
-            expense.setIncome(incomeRepository.getReferenceById(dto.incomeId()));
-        }
-        if (dto.personId() != null) {
-            expense.setPerson(peopleRepository.getReferenceById(dto.personId()));
-        }
-        if (dto.organizationId() != null) {
-            expense.setOrganization(organizationRepository.getReferenceById(dto.organizationId()));
-        }
+        applyPaymentLink(expense, dto.personId(), dto.organizationId());
         if (dto.documentId() != null) {
             expense.setDocument(documentRepository.getReferenceById(dto.documentId()));
         }
+    }
+
+    private void applyPaymentLink(Expense expense, Long personId, Long organizationId) {
+        if (personId != null) {
+            expense.setPerson(peopleRepository.getReferenceById(personId));
+            expense.setOrganization(null);
+            return;
+        }
+        if (organizationId != null) {
+            expense.setOrganization(organizationRepository.getReferenceById(organizationId));
+            expense.setPerson(null);
+            return;
+        }
+        expense.setPerson(null);
+        expense.setOrganization(null);
+    }
+
+    private Long resolveProjectId(Long projectId, Long incomeId) {
+        if (projectId != null) {
+            return projectId;
+        }
+        if (incomeId != null) {
+            return incomeRepository.findProjectIdById(incomeId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Receita nao encontrada"));
+        }
+        return null;
+    }
+
+    private Long requireProjectId(Long projectId, Long incomeId) {
+        Long resolvedProjectId = resolveProjectId(projectId, incomeId);
+        if (resolvedProjectId == null) {
+            throw new BusinessException("Projeto da despesa e obrigatorio");
+        }
+        return resolvedProjectId;
     }
 }
