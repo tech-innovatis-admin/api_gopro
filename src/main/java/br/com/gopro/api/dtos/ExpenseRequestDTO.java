@@ -7,9 +7,10 @@ import java.time.LocalDate;
 import java.util.UUID;
 
 public record ExpenseRequestDTO(
+        Long projectId,
         @NotNull(message = "Item orcamentario e obrigatorio") Long budgetItemId,
         @NotNull(message = "Categoria e obrigatoria") Long categoryId,
-        @NotNull(message = "Receita e obrigatoria") Long incomeId,
+        Long incomeId,
         @NotNull(message = "Data da despesa e obrigatoria") LocalDate expenseDate,
         @NotNull(message = "Quantidade e obrigatoria") Integer quantity,
         @NotNull(message = "Valor e obrigatorio") BigDecimal amount,

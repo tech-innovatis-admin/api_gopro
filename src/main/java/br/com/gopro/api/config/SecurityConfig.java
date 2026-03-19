@@ -1,25 +1,41 @@
 package br.com.gopro.api.config;
 
+import br.com.gopro.api.repository.*;
+import br.com.gopro.api.service.AuditLogService;
+import br.com.gopro.api.service.audit.ContractAuditDeltaResolver;
+import br.com.gopro.api.service.audit.AuditSnapshotExtractor;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+import lombok.RequiredArgsConstructor;
 
 import java.util.ArrayList;
 import java.util.List;
 
 @Configuration
 @EnableWebSecurity
+@EnableMethodSecurity
+@RequiredArgsConstructor
 public class SecurityConfig {
+
+    private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    private final RestAuthenticationEntryPoint restAuthenticationEntryPoint;
+    private final RestAccessDeniedHandler restAccessDeniedHandler;
 
     @Value("${app.cors.allowed-origins:}")
     private List<String> allowedOrigins;
@@ -37,24 +53,145 @@ public class SecurityConfig {
     private boolean allowCredentials;
 
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain securityFilterChain(
+            HttpSecurity http,
+            ApiMutationAuditFilter apiMutationAuditFilter
+    ) throws Exception {
         http
                 .cors(Customizer.withDefaults())
                 .csrf(csrf -> csrf.disable())
                 .httpBasic(AbstractHttpConfigurer::disable)
                 .formLogin(AbstractHttpConfigurer::disable)
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .exceptionHandling(ex -> ex
+                        .authenticationEntryPoint(restAuthenticationEntryPoint)
+                        .accessDeniedHandler(restAccessDeniedHandler)
+                )
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(
                                 "/v3/api-docs/**",
                                 "/swagger-ui/**",
-                                "/swagger-ui.html"
+                                "/swagger-ui.html",
+                                "/health",
+                                "/error"
                         ).permitAll()
+                        .requestMatchers(HttpMethod.POST, "/auth/login").permitAll()
+                        .requestMatchers("/register/**").permitAll()
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                        .anyRequest().permitAll()
-                );
+                        .requestMatchers("/admin/allowed-registrations/**").hasAnyRole("SUPERADMIN", "ADMIN")
+                        .requestMatchers("/admin/audit/**").hasAnyRole("SUPERADMIN", "ADMIN")
+                        .requestMatchers("/audit-log/**").hasAnyRole("SUPERADMIN", "ADMIN", "ANALISTA")
+                        .requestMatchers("/admin/users/**").hasAnyRole("SUPERADMIN", "ADMIN")
+                        .requestMatchers(
+                                HttpMethod.POST,
+                                "/disbursement-schedules/**",
+                                "/goals/**",
+                                "/stages/**",
+                                "/phases/**",
+                                "/budget-categories/**",
+                                "/budget-items/**",
+                                "/budget-transfers/**",
+                                "/project-people/**",
+                                "/project-companies/**",
+                                "/documents/**",
+                                "/incomes/**",
+                                "/expenses/**"
+                        ).hasAnyRole("SUPERADMIN", "ADMIN", "ANALISTA")
+                        .requestMatchers(
+                                HttpMethod.PUT,
+                                "/disbursement-schedules/**",
+                                "/goals/**",
+                                "/stages/**",
+                                "/phases/**",
+                                "/budget-categories/**",
+                                "/budget-items/**",
+                                "/budget-transfers/**",
+                                "/project-people/**",
+                                "/project-companies/**",
+                                "/incomes/**",
+                                "/expenses/**"
+                        ).hasAnyRole("SUPERADMIN", "ADMIN", "ANALISTA")
+                        .requestMatchers(
+                                HttpMethod.PATCH,
+                                "/disbursement-schedules/**",
+                                "/goals/**",
+                                "/stages/**",
+                                "/phases/**",
+                                "/budget-categories/**",
+                                "/budget-items/**",
+                                "/budget-transfers/**",
+                                "/project-people/**",
+                                "/project-companies/**",
+                                "/incomes/**",
+                                "/expenses/**"
+                        ).hasAnyRole("SUPERADMIN", "ADMIN", "ANALISTA")
+                        .requestMatchers(
+                                HttpMethod.DELETE,
+                                "/disbursement-schedules/**",
+                                "/goals/**",
+                                "/stages/**",
+                                "/phases/**",
+                                "/budget-categories/**",
+                                "/budget-items/**",
+                                "/budget-transfers/**",
+                                "/project-people/**",
+                                "/project-companies/**",
+                                "/documents/**",
+                                "/incomes/**",
+                                "/expenses/**"
+                        ).hasAnyRole("SUPERADMIN", "ADMIN", "ANALISTA")
+                        .anyRequest().authenticated()
+                )
+                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
+                .addFilterAfter(apiMutationAuditFilter, JwtAuthenticationFilter.class);
 
         return http.build();
+    }
+
+    @Bean
+    public PasswordEncoder passwordEncoder() {
+        return new BCryptPasswordEncoder();
+    }
+
+    @Bean
+    public ApiMutationAuditFilter apiMutationAuditFilter(
+            AuditLogService auditLogService,
+            ObjectMapper objectMapper,
+            AuditSnapshotExtractor auditSnapshotExtractor,
+            ContractAuditDeltaResolver contractAuditDeltaResolver,
+            ProjectRepository projectRepository,
+            BudgetCategoryRepository budgetCategoryRepository,
+            BudgetItemRepository budgetItemRepository,
+            BudgetTransferRepository budgetTransferRepository,
+            DisbursementScheduleRepository disbursementScheduleRepository,
+            GoalRepository goalRepository,
+            StageRepository stageRepository,
+            PhaseRepository phaseRepository,
+            IncomeRepository incomeRepository,
+            ExpenseRepository expenseRepository,
+            ProjectPeopleRepository projectPeopleRepository,
+            ProjectCompanyRepository projectCompanyRepository,
+            DocumentRepository documentRepository
+    ) {
+        return new ApiMutationAuditFilter(
+                auditLogService,
+                objectMapper,
+                auditSnapshotExtractor,
+                contractAuditDeltaResolver,
+                projectRepository,
+                budgetCategoryRepository,
+                budgetItemRepository,
+                budgetTransferRepository,
+                disbursementScheduleRepository,
+                goalRepository,
+                stageRepository,
+                phaseRepository,
+                incomeRepository,
+                expenseRepository,
+                projectPeopleRepository,
+                projectCompanyRepository,
+                documentRepository
+        );
     }
 
     @Bean

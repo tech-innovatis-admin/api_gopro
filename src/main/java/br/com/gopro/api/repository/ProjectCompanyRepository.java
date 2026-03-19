@@ -9,10 +9,15 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.util.Optional;
+
 @Repository
 public interface ProjectCompanyRepository extends JpaRepository<ProjectCompany, Long> {
     Page<ProjectCompany> findByIsActiveTrue(Pageable pageable);
     Page<ProjectCompany> findByProject_IdAndIsActiveTrue(Long projectId, Pageable pageable);
+
+    @Query("select pc.project.id from ProjectCompany pc where pc.id = :id")
+    Optional<Long> findProjectIdById(@Param("id") Long id);
 
     @Query(value = "select nextval('project_company_contract_number_seq')", nativeQuery = true)
     Long nextContractNumberSequence();

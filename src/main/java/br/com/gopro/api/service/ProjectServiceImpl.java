@@ -26,10 +26,12 @@ import br.com.gopro.api.repository.ProjectRepository;
 import br.com.gopro.api.repository.PublicAgencyRepository;
 import br.com.gopro.api.repository.SecretaryRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -38,6 +40,7 @@ import java.math.RoundingMode;
 import java.text.Normalizer;
 import java.time.LocalDate;
 import java.time.Month;
+import java.time.temporal.ChronoUnit;
 import java.time.format.TextStyle;
 import java.util.Arrays;
 import java.util.Comparator;
@@ -45,6 +48,8 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -62,6 +67,9 @@ public class ProjectServiceImpl implements ProjectService {
     private final PeopleRepository peopleRepository;
     private final ProjectPeopleRepository projectPeopleRepository;
     private static final Locale PT_BR = new Locale("pt", "BR");
+    private static final int CODE_SEQUENCE_DIGITS = 4;
+    private static final int MAX_CODE_GENERATION_ATTEMPTS = 5;
+    private static final Pattern UF_PATTERN = Pattern.compile("^[A-Z]{2}$");
     @Value("${app.project.max-contract-value:9999999999999.99}")
     private BigDecimal maxContractValue;
 
@@ -70,27 +78,47 @@ public class ProjectServiceImpl implements ProjectService {
     public ProjectResponseDTO createProject(ProjectRequestDTO dto) {
         validateContractValue(dto.contractValue());
         validateReferencesForCreate(dto);
+        String normalizedUf = normalizeUf(dto.state());
 
-        Project project = projectMapper.toEntity(dto);
-        project.setIsActive(true);
-        if (project.getTotalReceived() == null) {
-            project.setTotalReceived(BigDecimal.ZERO);
+        for (int attempt = 0; attempt < MAX_CODE_GENERATION_ATTEMPTS; attempt++) {
+            Project project = projectMapper.toEntity(dto);
+            project.setState(normalizedUf);
+            project.setExecutedByInnovatis(Boolean.TRUE.equals(dto.executedByInnovatis()));
+            project.setCode(generateContractCode(project.getProjectType(), project.getProjectGovIf(), normalizedUf));
+            project.setIsActive(true);
+            if (project.getTotalReceived() == null) {
+                project.setTotalReceived(BigDecimal.ZERO);
+            }
+            if (project.getTotalExpenses() == null) {
+                project.setTotalExpenses(BigDecimal.ZERO);
+            }
+            if (project.getSaldo() == null) {
+                project.setSaldo(BigDecimal.ZERO);
+            }
+
+            try {
+                Project saved = projectRepository.saveAndFlush(project);
+                ensureCoordinatorLinkedToProjectPeople(saved, dto.createdBy(), null);
+                return projectMapper.toDTO(saved);
+            } catch (DataIntegrityViolationException exception) {
+                if (isProjectCodeConflict(exception) && attempt < MAX_CODE_GENERATION_ATTEMPTS - 1) {
+                    continue;
+                }
+                throw exception;
+            }
         }
-        if (project.getTotalExpenses() == null) {
-            project.setTotalExpenses(BigDecimal.ZERO);
-        }
-        if (project.getSaldo() == null) {
-            project.setSaldo(BigDecimal.ZERO);
-        }
-        Project saved = projectRepository.save(project);
-        ensureCoordinatorLinkedToProjectPeople(saved, dto.createdBy(), null);
-        return projectMapper.toDTO(saved);
+
+        throw new BusinessException("Nao foi possivel gerar codigo unico para o contrato");
     }
 
     @Override
     public PageResponseDTO<ProjectResponseDTO> listAllProjects(int page, int size) {
         validatePage(page, size);
-        Pageable pageable = PageRequest.of(page, size);
+        Pageable pageable = PageRequest.of(
+                page,
+                size,
+                Sort.by(Sort.Direction.DESC, "createdAt").and(Sort.by(Sort.Direction.DESC, "id"))
+        );
         Page<Project> pageResult = projectRepository.findByIsActiveTrue(pageable);
         List<ProjectResponseDTO> content = pageResult.getContent().stream()
                 .map(projectMapper::toDTO)
@@ -132,6 +160,9 @@ public class ProjectServiceImpl implements ProjectService {
         }
 
         projectMapper.updateEntityFromDTO(dto, project);
+        if (dto.executedByInnovatis() != null) {
+            project.setExecutedByInnovatis(dto.executedByInnovatis());
+        }
         Project updated = projectRepository.save(project);
         ensureCoordinatorLinkedToProjectPeople(updated, dto.updatedBy(), project.getCreatedBy());
         return projectMapper.toDTO(updated);
@@ -180,6 +211,7 @@ public class ProjectServiceImpl implements ProjectService {
             ProjectStatusEnum projectStatus,
             ProjectTypeEnum projectType,
             ProjectGovIfEnum projectGovIf,
+            Boolean executedByInnovatis,
             Integer month,
             Integer year,
             String location,
@@ -201,6 +233,7 @@ public class ProjectServiceImpl implements ProjectService {
                 .filter(project -> projectStatus == null || projectStatus == project.getProjectStatus())
                 .filter(project -> projectType == null || projectType == project.getProjectType())
                 .filter(project -> projectGovIf == null || projectGovIf == project.getProjectGovIf())
+                .filter(project -> executedByInnovatis == null || executedByInnovatis.equals(project.getExecutedByInnovatis()))
                 .filter(project -> month == null || monthMatches(project, month))
                 .filter(project -> year == null || yearMatches(project, year))
                 .filter(project -> partnerId == null || partnerMatches(project, partnerId))
@@ -291,11 +324,14 @@ public class ProjectServiceImpl implements ProjectService {
                         .thenComparing(ProjectDashboardResponseDTO.PartnerMetricDTO::partnerName, Comparator.nullsLast(String::compareToIgnoreCase)))
                 .toList();
 
+        ProjectDashboardResponseDTO.ExpiringContractsDTO expiringContracts = buildExpiringContracts(filteredProjects);
+
         return new ProjectDashboardResponseDTO(
                 new ProjectDashboardResponseDTO.FilterDTO(
                         projectStatus,
                         projectType,
                         projectGovIf,
+                        executedByInnovatis,
                         month,
                         year,
                         trimToNull(location),
@@ -310,7 +346,8 @@ public class ProjectServiceImpl implements ProjectService {
                 byType,
                 byMonth,
                 byLocation,
-                byPartner
+                byPartner,
+                expiringContracts
         );
     }
 
@@ -353,6 +390,93 @@ public class ProjectServiceImpl implements ProjectService {
                     "Valor do projeto nao pode ser maior que " + maxContractValue.toPlainString()
             );
         }
+    }
+
+    private String generateContractCode(ProjectTypeEnum projectType, ProjectGovIfEnum projectGovIf, String state) {
+        String typeCode = toCodeType(projectType);
+        String govIfCode = toCodeGovIf(projectGovIf);
+        String uf = normalizeUf(state);
+        int year = LocalDate.now().getYear();
+        String prefix = typeCode + govIfCode + "/" + uf + "-" + year;
+        int sequence = resolveNextSequence(prefix);
+
+        return prefix + formatSequence(sequence);
+    }
+
+    private String toCodeType(ProjectTypeEnum projectType) {
+        if (projectType == null) {
+            throw new BusinessException("Tipo do contrato e obrigatorio");
+        }
+        return switch (projectType) {
+            case PROJETO -> "PROJ";
+            case PRODUTO -> "PROD";
+        };
+    }
+
+    private String toCodeGovIf(ProjectGovIfEnum projectGovIf) {
+        if (projectGovIf == null) {
+            throw new BusinessException("Unidade GOV/IF e obrigatoria");
+        }
+        return switch (projectGovIf) {
+            case GOV -> "GOV";
+            case IF -> "IF";
+        };
+    }
+
+    private String normalizeUf(String state) {
+        String uf = trimToNull(state);
+        if (uf == null) {
+            throw new BusinessException("UF e obrigatoria");
+        }
+
+        String normalizedUf = stripAccents(uf)
+                .toUpperCase(Locale.ROOT)
+                .replaceAll("[^A-Z]", "");
+
+        if (!UF_PATTERN.matcher(normalizedUf).matches()) {
+            throw new BusinessException("UF deve possuir 2 letras (ex: SP)");
+        }
+        return normalizedUf;
+    }
+
+    private int resolveNextSequence(String codePrefix) {
+        Pattern pattern = Pattern.compile("^" + Pattern.quote(codePrefix) + "(\\d{" + CODE_SEQUENCE_DIGITS + "})$");
+
+        int currentMax = projectRepository.findCodesByPrefix(codePrefix).stream()
+                .map(pattern::matcher)
+                .filter(Matcher::matches)
+                .mapToInt(matcher -> Integer.parseInt(matcher.group(1)))
+                .max()
+                .orElse(0);
+
+        int maxSequence = (int) Math.pow(10, CODE_SEQUENCE_DIGITS) - 1;
+        int next = currentMax + 1;
+        if (next > maxSequence) {
+            throw new BusinessException("Limite de sequencial anual atingido para tipo e UF informados");
+        }
+        return next;
+    }
+
+    private String formatSequence(int sequence) {
+        return String.format(Locale.ROOT, "%0" + CODE_SEQUENCE_DIGITS + "d", sequence);
+    }
+
+    private boolean isProjectCodeConflict(DataIntegrityViolationException exception) {
+        String details = dataIntegrityDetails(exception);
+        return details.contains("projects_code_key")
+                || details.contains("project_code_key")
+                || (details.contains("duplicate key") && details.contains("code"))
+                || (details.contains("unique") && details.contains("code"));
+    }
+
+    private String dataIntegrityDetails(DataIntegrityViolationException exception) {
+        if (exception.getMostSpecificCause() != null && exception.getMostSpecificCause().getMessage() != null) {
+            return exception.getMostSpecificCause().getMessage().toLowerCase(Locale.ROOT);
+        }
+        if (exception.getMessage() != null) {
+            return exception.getMessage().toLowerCase(Locale.ROOT);
+        }
+        return "";
     }
 
     private boolean monthMatches(Project project, int month) {
@@ -462,9 +586,12 @@ public class ProjectServiceImpl implements ProjectService {
         if (value == null) {
             return "";
         }
-        String normalized = Normalizer.normalize(value, Normalizer.Form.NFD)
+        return stripAccents(value).toLowerCase(PT_BR).trim();
+    }
+
+    private String stripAccents(String value) {
+        return Normalizer.normalize(value, Normalizer.Form.NFD)
                 .replaceAll("\\p{M}", "");
-        return normalized.toLowerCase(PT_BR).trim();
     }
 
     private String trimToNull(String value) {
@@ -477,6 +604,77 @@ public class ProjectServiceImpl implements ProjectService {
 
     private String valueOrEmpty(String value) {
         return value == null ? "" : value;
+    }
+
+    private ProjectDashboardResponseDTO.ExpiringContractsDTO buildExpiringContracts(List<Project> projects) {
+        LocalDate referenceDate = LocalDate.now();
+        LocalDate oneMonthLimit = referenceDate.plusMonths(1);
+        LocalDate threeMonthLimit = referenceDate.plusMonths(3);
+        LocalDate sixMonthLimit = referenceDate.plusMonths(6);
+        LocalDate oneYearLimit = referenceDate.plusYears(1);
+
+        List<Project> upcomingProjects = projects.stream()
+                .filter(project -> project.getEndDate() != null)
+                .filter(project -> isWithinDateRange(project.getEndDate(), referenceDate, oneYearLimit))
+                .sorted(Comparator
+                        .comparing(Project::getEndDate)
+                        .thenComparing(Project::getId, Comparator.nullsLast(Long::compareTo)))
+                .toList();
+
+        long upToOneMonth = upcomingProjects.stream()
+                .filter(project -> !project.getEndDate().isAfter(oneMonthLimit))
+                .count();
+
+        long upToThreeMonths = upcomingProjects.stream()
+                .filter(project -> project.getEndDate().isAfter(oneMonthLimit))
+                .filter(project -> !project.getEndDate().isAfter(threeMonthLimit))
+                .count();
+
+        long upToSixMonths = upcomingProjects.stream()
+                .filter(project -> project.getEndDate().isAfter(threeMonthLimit))
+                .filter(project -> !project.getEndDate().isAfter(sixMonthLimit))
+                .count();
+
+        long upToOneYear = upcomingProjects.stream()
+                .filter(project -> project.getEndDate().isAfter(sixMonthLimit))
+                .filter(project -> !project.getEndDate().isAfter(oneYearLimit))
+                .count();
+
+        List<ProjectDashboardResponseDTO.ExpiringContractDTO> contracts = upcomingProjects.stream()
+                .map(project -> new ProjectDashboardResponseDTO.ExpiringContractDTO(
+                        project.getId(),
+                        project.getName(),
+                        project.getCode(),
+                        resolvePrimaryClientName(project),
+                        project.getEndDate(),
+                        ChronoUnit.DAYS.between(referenceDate, project.getEndDate()),
+                        project.getProjectStatus(),
+                        project.getContractValue()
+                ))
+                .toList();
+
+        return new ProjectDashboardResponseDTO.ExpiringContractsDTO(
+                referenceDate,
+                upToOneMonth,
+                upToThreeMonths,
+                upToSixMonths,
+                upToOneYear,
+                contracts
+        );
+    }
+
+    private boolean isWithinDateRange(LocalDate value, LocalDate startInclusive, LocalDate endInclusive) {
+        return value != null
+                && !value.isBefore(startInclusive)
+                && !value.isAfter(endInclusive);
+    }
+
+    private String resolvePrimaryClientName(Project project) {
+        if (project == null || project.getPrimaryClient() == null) {
+            return "Nao informado";
+        }
+        String name = trimToNull(project.getPrimaryClient().getName());
+        return name != null ? name : "Nao informado";
     }
 
     private record PartnerKey(Long partnerId, String partnerAcronym, String partnerName) {

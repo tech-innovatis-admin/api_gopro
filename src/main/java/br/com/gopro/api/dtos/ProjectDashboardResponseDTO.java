@@ -5,6 +5,7 @@ import br.com.gopro.api.enums.ProjectTypeEnum;
 import br.com.gopro.api.enums.ProjectGovIfEnum;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
 
 public record ProjectDashboardResponseDTO(
@@ -15,12 +16,14 @@ public record ProjectDashboardResponseDTO(
         List<TypeMetricDTO> byType,
         List<MonthMetricDTO> byMonth,
         List<LocationMetricDTO> byLocation,
-        List<PartnerMetricDTO> byPartner
+        List<PartnerMetricDTO> byPartner,
+        ExpiringContractsDTO expiringContracts
 ) {
     public record FilterDTO(
             ProjectStatusEnum projectStatus,
             ProjectTypeEnum projectType,
             ProjectGovIfEnum projectGovIf,
+            Boolean executedByInnovatis,
             Integer month,
             Integer year,
             String location,
@@ -72,6 +75,28 @@ public record ProjectDashboardResponseDTO(
             String partnerName,
             long contracts,
             BigDecimal totalValue
+    ) {
+    }
+
+    public record ExpiringContractsDTO(
+            LocalDate referenceDate,
+            long upToOneMonth,
+            long upToThreeMonths,
+            long upToSixMonths,
+            long upToOneYear,
+            List<ExpiringContractDTO> contracts
+    ) {
+    }
+
+    public record ExpiringContractDTO(
+            Long projectId,
+            String projectName,
+            String projectCode,
+            String primaryClientName,
+            LocalDate endDate,
+            long daysToExpiration,
+            ProjectStatusEnum projectStatus,
+            BigDecimal contractValue
     ) {
     }
 }

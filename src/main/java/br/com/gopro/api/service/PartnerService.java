@@ -5,8 +5,6 @@ import br.com.gopro.api.dtos.PartnerRequestDTO;
 import br.com.gopro.api.dtos.PartnerResponseDTO;
 import br.com.gopro.api.dtos.PartnerUpdateDTO;
 
-import java.util.List;
-
 public interface PartnerService {
     PartnerResponseDTO createPartner(PartnerRequestDTO dto);
     PageResponseDTO<PartnerResponseDTO> listAllPartners(int page, int size);

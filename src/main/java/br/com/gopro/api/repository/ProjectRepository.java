@@ -11,6 +11,8 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -21,22 +23,74 @@ public interface ProjectRepository extends JpaRepository<Project, Long> {
     Page<Project> findByIsActiveTrue(Pageable pageable);
     List<Project> findByIsActiveTrue();
     Optional<Project> findByCode(String code);
+    @Query("""
+    select p.code
+    from Project p
+    where p.code like concat(:prefix, '%')
+""")
+    List<String> findCodesByPrefix(@Param("prefix") String prefix);
 
     @Query("""
+    select p
+    from Project p
+    where p.isActive = true
+      and p.createdAt is not null
+      and p.createdAt >= :fromDate
+    order by p.createdAt desc, p.id desc
+""")
+    List<Project> findRecentCreatedProjects(@Param("fromDate") LocalDateTime fromDate, Pageable pageable);
+
+    @Query("""
+    select p
+    from Project p
+    where p.isActive = true
+      and p.endDate is not null
+      and p.endDate between :startDate and :endDate
+    order by p.endDate asc, p.id asc
+""")
+    List<Project> findExpiringProjectsBetween(
+            @Param("startDate") LocalDate startDate,
+            @Param("endDate") LocalDate endDate,
+            Pageable pageable
+    );
+
+    @Query(value = """
     select
         p.id as id,
         p.name as name,
         p.code as code,
-        cast(p.projectStatus as string) as projectStatus,
-        coalesce(sum(distinct i.amount), 0) as totalReceived,
-        coalesce(sum(e.amount), 0) as totalExpenses,
-        (coalesce(sum(distinct i.amount), 0) - coalesce(sum(e.amount), 0)) as saldo
-    from Project p
-    left join Income i on i.project.id = p.id
-    left join Expense e on e.income.id = i.id
-    group by p.id, p.name, p.code, p.projectStatus
-    order by p.createdAt desc
-""")
+        cast(p.project_status as varchar) as projectStatus,
+        coalesce((
+            select sum(i.amount)
+            from incomes i
+            where i.project_id = p.id
+              and i.is_active = true
+        ), 0) as totalReceived,
+        coalesce((
+            select sum(e.amount)
+            from expenses e
+            where e.project_id = p.id
+              and e.is_active = true
+        ), 0) as totalExpenses,
+        (
+            coalesce((
+                select sum(i.amount)
+                from incomes i
+                where i.project_id = p.id
+                  and i.is_active = true
+            ), 0)
+            -
+            coalesce((
+                select sum(e.amount)
+                from expenses e
+                where e.project_id = p.id
+                  and e.is_active = true
+            ), 0)
+        ) as saldo
+    from projects p
+    where p.is_active = true
+    order by p.created_at desc
+""", nativeQuery = true)
     List<ProjectTotalRow> findAllWithTotals();
 
     @Query("""

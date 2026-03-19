@@ -7,6 +7,7 @@
 target
 out
 build
+.m2-test
 src/test
 
 *.log
@@ -23,6 +24,13 @@ storage/
 *.tmp
 **/.DS_Store
 !.env.example
+.classpath
+.factorypath
+.project
+.settings/
+dependency-reduced-pom.xml
+*.jar
+*.war
 
 README.md
 docker-compose*.yml

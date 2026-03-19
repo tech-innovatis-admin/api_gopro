@@ -45,5 +45,55 @@ Configuracoes:
 - Docs JSON: `http://localhost:8080/v3/api-docs`
 
 ## Observacoes
-- Seguranca atual esta aberta (`permitAll`) para todas as rotas da API.
 - Erros sao padronizados via `GlobalExceptionHandler`.
+
+## Autenticacao, RBAC e Convites
+
+### Endpoints publicos
+- `POST /auth/login`
+- `GET /register/validate?token=...`
+- `POST /register/complete`
+- `GET /health`
+
+### Endpoints protegidos por role
+- `SUPERADMIN`: `POST/GET/PATCH /admin/allowed-registrations/**`
+- `SUPERADMIN`: `GET /admin/audit`
+- `SUPERADMIN` e `ADMIN`: `GET/PATCH /admin/users/**`
+- Demais rotas da API: autenticadas por JWT (`Authorization: Bearer <token>`)
+
+### Fluxo de cadastro por convite
+1. SUPERADMIN cria convite em `POST /admin/allowed-registrations`.
+2. API retorna `inviteLink` com token temporario (token nunca e salvo em texto puro no banco).
+3. Usuario abre o link, valida token em `GET /register/validate`.
+4. Usuario conclui cadastro em `POST /register/complete`.
+
+### Auditoria
+Acoes sensiveis registradas em `audit_log`:
+- login (sucesso/falha)
+- criar/reemitir/cancelar convite
+- concluir cadastro por convite
+- atualizacao de role/status de usuario
+- bootstrap de superadmin
+
+Consulta disponivel em `GET /admin/audit` (apenas `SUPERADMIN`).
+
+## Bootstrap seguro do SUPERADMIN
+
+O superadmin inicial nao fica hardcoded no codigo. O bootstrap e controlado por env vars:
+
+```bash
+APP_AUTH_BOOTSTRAP_SUPERADMIN_ENABLED=true
+APP_AUTH_BOOTSTRAP_SUPERADMIN_EMAIL=tech@innovatismc.com
+APP_AUTH_BOOTSTRAP_SUPERADMIN_USERNAME=tech
+APP_AUTH_BOOTSTRAP_SUPERADMIN_PASSWORD=InnovaLabs86@
+APP_AUTH_BOOTSTRAP_SUPERADMIN_FULL_NAME=Tech Innovatis
+```
+
+Recomendado:
+1. Habilitar `...ENABLED=true` apenas na primeira inicializacao controlada.
+2. Subir a API e validar o login.
+3. Voltar `...ENABLED=false` para evitar rebootstrap.
+
+## Migrations da feature
+- `core`: `V114__create_auth_and_audit_tables.sql`
+- `prod`: `V026__create_auth_and_audit_tables.sql`

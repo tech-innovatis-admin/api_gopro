@@ -37,13 +37,13 @@ public class Partner {
     @Column(name = "cnpj", nullable = false, length = 14)
     private String cnpj;
 
-    @Column(name = "email", nullable = false)
+    @Column(name = "email")
     private String email;
 
-    @Column(name = "phone", length = 50, nullable = false)
+    @Column(name = "phone", length = 50)
     private String phone;
 
-    @Column(name = "address", nullable = false, length = 400)
+    @Column(name = "address", length = 400)
     private String address;
 
     @Column(name = "site", length = 300)

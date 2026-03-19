@@ -21,14 +21,14 @@ public class SwaggerConfig {
                         .title("GoPro 2 - API")
                         .description("API Backend do Sistema GoPro 2")
                         .version("v1")
-                        .license(new License().name("Apache 2.0").url("https://www.apache.org/licenses/LICENSE-2.0")));
-//                .addSecurityItem(new SecurityRequirement().addList("bearerAuth"))
-//                .components(new Components().addSecuritySchemes("bearerAuth",
-//                        new SecurityScheme()
-//                                .name("bearerAuth")
-//                                .type(SecurityScheme.Type.HTTP)
-//                                .scheme("bearer")
-//                                .bearerFormat("JWT")));
+                        .license(new License().name("Apache 2.0").url("https://www.apache.org/licenses/LICENSE-2.0")))
+                .addSecurityItem(new SecurityRequirement().addList("bearerAuth"))
+                .components(new Components().addSecuritySchemes("bearerAuth",
+                        new SecurityScheme()
+                                .name("bearerAuth")
+                                .type(SecurityScheme.Type.HTTP)
+                                .scheme("bearer")
+                                .bearerFormat("JWT")));
     }
 
     @Bean
