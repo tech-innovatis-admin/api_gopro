@@ -9,6 +9,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.util.Collection;
 import java.util.Optional;
 
 @Repository
@@ -31,4 +32,6 @@ public interface AppUserRepository extends JpaRepository<AppUser, Long>, JpaSpec
     boolean existsByUsernameIgnoreCase(String username);
 
     boolean existsByRoleAndStatusAndIsActive(UserRoleEnum role, UserStatusEnum status, Boolean isActive);
+
+    boolean existsByRoleInAndStatusAndIsActive(Collection<UserRoleEnum> roles, UserStatusEnum status, Boolean isActive);
 }
