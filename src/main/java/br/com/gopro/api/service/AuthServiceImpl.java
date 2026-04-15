@@ -18,6 +18,7 @@ import br.com.gopro.api.service.audit.AuditEventRequest;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -157,6 +158,9 @@ public class AuthServiceImpl implements AuthService {
 
         AppUser user = appUserRepository.findById(principal.id())
                 .orElseThrow(() -> new ResourceNotFoundException("Usuario nao encontrado"));
+        if (user.getRole() != null && user.getRole().isProtectedAccount()) {
+            throw new AccessDeniedException("Acesso negado");
+        }
 
         String avatarDocumentId = documentService
                 .upload(file, DocumentOwnerTypeEnum.USER, user.getId(), "FOTO_PERFIL", principal.id())

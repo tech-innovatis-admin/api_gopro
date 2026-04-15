@@ -1,5 +1,6 @@
 package br.com.gopro.api.service;
 
+import br.com.gopro.api.config.AuthenticatedUserPrincipal;
 import br.com.gopro.api.dtos.PageResponseDTO;
 import br.com.gopro.api.dtos.ProjectDashboardResponseDTO;
 import br.com.gopro.api.dtos.ProjectRequestDTO;
@@ -32,6 +33,8 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -39,6 +42,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.text.Normalizer;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.Month;
 import java.time.temporal.ChronoUnit;
 import java.time.format.TextStyle;
@@ -69,6 +73,8 @@ public class ProjectServiceImpl implements ProjectService {
     private static final Locale PT_BR = new Locale("pt", "BR");
     private static final int CODE_SEQUENCE_DIGITS = 4;
     private static final int MAX_CODE_GENERATION_ATTEMPTS = 5;
+    private static final int DUPLICATE_CREATE_GUARD_WINDOW_SECONDS = 15;
+    private static final int DUPLICATE_CREATE_GUARD_MAX_RESULTS = 20;
     private static final Pattern UF_PATTERN = Pattern.compile("^[A-Z]{2}$");
     @Value("${app.project.max-contract-value:9999999999999.99}")
     private BigDecimal maxContractValue;
@@ -79,11 +85,18 @@ public class ProjectServiceImpl implements ProjectService {
         validateContractValue(dto.contractValue());
         validateReferencesForCreate(dto);
         String normalizedUf = normalizeUf(dto.state());
+        Long auditUserId = resolveAuditUserId(dto.createdBy(), null);
+
+        Project recentDuplicate = findRecentDuplicateProject(dto, normalizedUf, auditUserId);
+        if (recentDuplicate != null) {
+            return projectMapper.toDTO(recentDuplicate);
+        }
 
         for (int attempt = 0; attempt < MAX_CODE_GENERATION_ATTEMPTS; attempt++) {
             Project project = projectMapper.toEntity(dto);
             project.setState(normalizedUf);
             project.setExecutedByInnovatis(Boolean.TRUE.equals(dto.executedByInnovatis()));
+            project.setCreatedBy(auditUserId);
             project.setCode(generateContractCode(project.getProjectType(), project.getProjectGovIf(), normalizedUf));
             project.setIsActive(true);
             if (project.getTotalReceived() == null) {
@@ -98,7 +111,7 @@ public class ProjectServiceImpl implements ProjectService {
 
             try {
                 Project saved = projectRepository.saveAndFlush(project);
-                ensureCoordinatorLinkedToProjectPeople(saved, dto.createdBy(), null);
+                ensureCoordinatorLinkedToProjectPeople(saved, auditUserId, null);
                 return projectMapper.toDTO(saved);
             } catch (DataIntegrityViolationException exception) {
                 if (isProjectCodeConflict(exception) && attempt < MAX_CODE_GENERATION_ATTEMPTS - 1) {
@@ -461,6 +474,63 @@ public class ProjectServiceImpl implements ProjectService {
         return String.format(Locale.ROOT, "%0" + CODE_SEQUENCE_DIGITS + "d", sequence);
     }
 
+    private Project findRecentDuplicateProject(ProjectRequestDTO dto, String normalizedUf, Long auditUserId) {
+        LocalDateTime fromDate = LocalDateTime.now().minusSeconds(DUPLICATE_CREATE_GUARD_WINDOW_SECONDS);
+        Pageable pageable = PageRequest.of(0, DUPLICATE_CREATE_GUARD_MAX_RESULTS);
+
+        return projectRepository.findRecentCreatedProjects(fromDate, pageable).stream()
+                .filter(project -> Boolean.TRUE.equals(project.getIsActive()))
+                .filter(project -> auditUserId == null || Objects.equals(project.getCreatedBy(), auditUserId))
+                .filter(project -> matchesCreateRequest(project, dto, normalizedUf))
+                .findFirst()
+                .orElse(null);
+    }
+
+    private boolean matchesCreateRequest(Project project, ProjectRequestDTO dto, String normalizedUf) {
+        return Objects.equals(trimToNull(project.getName()), trimToNull(dto.name()))
+                && project.getProjectStatus() == dto.projectStatus()
+                && Objects.equals(trimToNull(project.getObject()), trimToNull(dto.object()))
+                && Objects.equals(getId(project.getPrimaryPartner()), dto.primaryPartnerId())
+                && Objects.equals(getId(project.getSecundaryPartner()), dto.secundaryPartnerId())
+                && Objects.equals(getId(project.getPrimaryClient()), dto.primaryClientId())
+                && Objects.equals(getId(project.getSecundaryClient()), dto.secundaryClientId())
+                && Objects.equals(getId(project.getCordinator()), dto.cordinatorId())
+                && project.getProjectGovIf() == dto.projectGovIf()
+                && project.getProjectType() == dto.projectType()
+                && sameBigDecimal(project.getContractValue(), dto.contractValue())
+                && Objects.equals(project.getStartDate(), dto.startDate())
+                && Objects.equals(project.getEndDate(), dto.endDate())
+                && Objects.equals(project.getOpeningDate(), dto.openingDate())
+                && Objects.equals(project.getClosingDate(), dto.closingDate())
+                && Objects.equals(trimToNull(project.getCity()), trimToNull(dto.city()))
+                && Objects.equals(trimToNull(project.getExecutionLocation()), trimToNull(dto.executionLocation()))
+                && Objects.equals(normalizeUf(project.getState()), normalizedUf)
+                && Objects.equals(project.getExecutedByInnovatis(), dto.executedByInnovatis());
+    }
+
+    private Long getId(Object entity) {
+        if (entity instanceof Partner partner) {
+            return partner.getId();
+        }
+        if (entity instanceof br.com.gopro.api.model.PublicAgency publicAgency) {
+            return publicAgency.getId();
+        }
+        if (entity instanceof br.com.gopro.api.model.Secretary secretary) {
+            return secretary.getId();
+        }
+        if (entity instanceof br.com.gopro.api.model.People people) {
+            return people.getId();
+        }
+        return null;
+    }
+
+    private boolean sameBigDecimal(BigDecimal left, BigDecimal right) {
+        if (left == null || right == null) {
+            return left == null && right == null;
+        }
+        return left.compareTo(right) == 0;
+    }
+
     private boolean isProjectCodeConflict(DataIntegrityViolationException exception) {
         String details = dataIntegrityDetails(exception);
         return details.contains("projects_code_key")
@@ -793,6 +863,12 @@ public class ProjectServiceImpl implements ProjectService {
     private Long resolveAuditUserId(Long preferredUserId, Long fallbackUserId) {
         if (preferredUserId != null) {
             return preferredUserId;
+        }
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication != null && authentication.getPrincipal() instanceof AuthenticatedUserPrincipal principal) {
+            if (principal.id() != null) {
+                return principal.id();
+            }
         }
         if (fallbackUserId != null) {
             return fallbackUserId;

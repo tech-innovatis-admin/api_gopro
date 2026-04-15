@@ -5,7 +5,11 @@ import org.junit.jupiter.api.Test;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.mock.http.MockHttpInputMessage;
 import org.springframework.mock.web.MockHttpServletRequest;
+
+import java.nio.charset.StandardCharsets;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -66,6 +70,26 @@ class GlobalExceptionHandlerTest {
         assertThat(response.getBody().message())
                 .isEqualTo("Um dos campos de texto excedeu o limite de 255 caracteres");
         assertThat(response.getBody().fieldErrors()).isNull();
+    }
+
+    @Test
+    void handleHttpMessageNotReadable_shouldExposeFriendlyMessage_forInvalidLocalDate() {
+        HttpMessageNotReadableException exception = new HttpMessageNotReadableException(
+                """
+                JSON parse error: Cannot deserialize value of type `java.time.LocalDate` from String "202-04-03"
+                at [Source: UNKNOWN; line: 1, column: 44] (through reference chain: br.com.gopro.api.dtos.DisbursementScheduleRequestDTO["expectedMonth"])
+                """,
+                new java.time.format.DateTimeParseException("Text '202-04-03' could not be parsed", "202-04-03", 0),
+                new MockHttpInputMessage("{}".getBytes(StandardCharsets.UTF_8))
+        );
+
+        ResponseEntity<ErrorResponse> response = handler.handleHttpMessageNotReadable(exception, request());
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody().message()).isEqualTo("Mes previsto esta em formato invalido. Use o padrao YYYY-MM-DD.");
+        assertThat(response.getBody().fieldErrors())
+                .containsExactly(new ErrorResponse.FieldError("expectedMonth", "Mes previsto esta em formato invalido. Use o padrao YYYY-MM-DD."));
     }
 
     private HttpServletRequest request() {

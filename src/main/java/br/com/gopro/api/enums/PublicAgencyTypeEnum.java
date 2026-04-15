@@ -4,5 +4,6 @@ public enum PublicAgencyTypeEnum {
     PREFEITURA,
     GOVERNO_ESTADUAL,
     MINISTERIO,
+    EMPRESA_PUBLICA,
     EMPRESA_PRIVADA
 }

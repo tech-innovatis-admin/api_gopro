@@ -83,7 +83,7 @@ public class UserAdminServiceImpl implements UserAdminService {
             throw new BusinessException("Informe ao menos role ou status para atualizar");
         }
 
-        enforceRbac(actor, target, dto);
+        enforceRbac(actor, target);
 
         Map<String, Object> before = snapshot(target);
 
@@ -119,8 +119,12 @@ public class UserAdminServiceImpl implements UserAdminService {
         return toDTO(saved);
     }
 
-    private void enforceRbac(AuthenticatedUserPrincipal actor, AppUser target, AdminUserUpdateRequestDTO dto) {
-        if (actor.role() == UserRoleEnum.SUPERADMIN || actor.role() == UserRoleEnum.ADMIN) {
+    private void enforceRbac(AuthenticatedUserPrincipal actor, AppUser target) {
+        if (target.getRole() != null && target.getRole().isProtectedAccount()) {
+            throw new AccessDeniedException("Acesso negado");
+        }
+
+        if (actor.role() != null && actor.role().canAccessAdminArea()) {
             return;
         }
 

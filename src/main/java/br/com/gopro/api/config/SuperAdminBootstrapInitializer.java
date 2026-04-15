@@ -17,6 +17,7 @@ import org.springframework.boot.ApplicationRunner;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -59,16 +60,16 @@ public class SuperAdminBootstrapInitializer implements ApplicationRunner {
         String normalizedUsername = isBlank(bootstrapUsername) ? "tech" : bootstrapUsername.trim().toLowerCase();
         Optional<AppUser> existing = resolveBootstrapUser(normalizedEmail, normalizedUsername);
 
-        boolean hasActiveSuperAdmin = appUserRepository.existsByRoleAndStatusAndIsActive(
-                UserRoleEnum.SUPERADMIN,
+        boolean hasActivePrivilegedUser = appUserRepository.existsByRoleInAndStatusAndIsActive(
+                List.of(UserRoleEnum.OWNER, UserRoleEnum.SUPERADMIN),
                 UserStatusEnum.ACTIVE,
                 true
         );
-        if (hasActiveSuperAdmin) {
-            if (existing.isPresent() && isActiveSuperAdmin(existing.get())) {
+        if (hasActivePrivilegedUser) {
+            if (existing.isPresent() && isActivePrivilegedUser(existing.get())) {
                 log.info("superadmin bootstrap ignorado: usuario bootstrap ja existe e esta ativo");
             } else {
-                log.info("superadmin bootstrap ignorado: ja existe SUPERADMIN ativo");
+                log.info("superadmin bootstrap ignorado: ja existe OWNER ou SUPERADMIN ativo");
             }
             return;
         }
@@ -126,8 +127,9 @@ public class SuperAdminBootstrapInitializer implements ApplicationRunner {
         return appUserRepository.findByUsernameIgnoreCase(username);
     }
 
-    private boolean isActiveSuperAdmin(AppUser user) {
-        return user.getRole() == UserRoleEnum.SUPERADMIN
+    private boolean isActivePrivilegedUser(AppUser user) {
+        return user.getRole() != null
+                && user.getRole().hasSuperadminPrivileges()
                 && user.getStatus() == UserStatusEnum.ACTIVE
                 && Boolean.TRUE.equals(user.getIsActive());
     }

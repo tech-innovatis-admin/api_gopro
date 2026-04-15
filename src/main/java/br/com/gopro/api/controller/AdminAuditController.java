@@ -25,7 +25,7 @@ public class AdminAuditController {
 
     @Operation(summary = "Listar logs de auditoria administrativos")
     @GetMapping("/admin/audit")
-    @PreAuthorize("hasAnyRole('SUPERADMIN','ADMIN')")
+    @PreAuthorize("hasAnyRole('OWNER','SUPERADMIN','ADMIN')")
     public ResponseEntity<PageResponseDTO<AuditLogResponseDTO>> listAdminAudit(
             @RequestParam(required = false) AuditScopeEnum scope,
             @RequestParam(required = false) String action,

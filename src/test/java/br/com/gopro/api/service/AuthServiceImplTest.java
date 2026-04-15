@@ -1,6 +1,7 @@
 package br.com.gopro.api.service;
 
 import br.com.gopro.api.config.JwtService;
+import br.com.gopro.api.config.AuthenticatedUserPrincipal;
 import br.com.gopro.api.dtos.AuthLoginRequestDTO;
 import br.com.gopro.api.dtos.AuthLoginResponseDTO;
 import br.com.gopro.api.enums.UserRoleEnum;
@@ -15,6 +16,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.util.ReflectionTestUtils;
 
@@ -94,6 +97,27 @@ class AuthServiceImplTest {
         verify(rateLimitService).ensureWithinLimit(expectedKey, 5, 900L);
         verify(rateLimitService).registerAttempt(expectedKey, 900L);
         verify(rateLimitService, never()).reset(expectedKey);
+    }
+
+    @Test
+    void updateMyAvatar_shouldBlockOwnerAccount() {
+        AppUser owner = activeUser();
+        owner.setRole(UserRoleEnum.OWNER);
+        when(appUserRepository.findById(1L)).thenReturn(Optional.of(owner));
+
+        MockMultipartFile file = new MockMultipartFile(
+                "file",
+                "avatar.png",
+                "image/png",
+                new byte[]{1, 2, 3}
+        );
+
+        assertThatThrownBy(() -> service.updateMyAvatar(
+                new AuthenticatedUserPrincipal(1L, "owner@empresa.com", UserRoleEnum.OWNER),
+                file
+        ))
+                .isInstanceOf(AccessDeniedException.class)
+                .hasMessageContaining("Acesso negado");
     }
 
     private AppUser activeUser() {
