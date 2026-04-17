@@ -23,12 +23,17 @@ public class IncomeServiceImpl implements IncomeService {
 
     private final IncomeRepository incomeRepository;
     private final IncomeMapper incomeMapper;
+    private final ProjectFinancialSummaryService projectFinancialSummaryService;
 
     @Override
     public IncomeResponseDTO createIncome(IncomeRequestDTO dto) {
         Income income = incomeMapper.toEntity(dto);
         income.setIsActive(true);
         Income saved = incomeRepository.save(income);
+        projectFinancialSummaryService.refreshIncomeAggregates(
+                saved.getProject() != null ? saved.getProject().getId() : null,
+                null
+        );
         return incomeMapper.toDTO(saved);
     }
 
@@ -71,8 +76,13 @@ public class IncomeServiceImpl implements IncomeService {
         if (!Boolean.TRUE.equals(income.getIsActive())) {
             throw new BusinessException("Nao e possivel atualizar uma receita inativa");
         }
+        Long previousProjectId = income.getProject() != null ? income.getProject().getId() : null;
         incomeMapper.updateEntityFromDTO(dto, income);
         Income updated = incomeRepository.save(income);
+        projectFinancialSummaryService.refreshIncomeAggregates(
+                updated.getProject() != null ? updated.getProject().getId() : null,
+                previousProjectId
+        );
         return incomeMapper.toDTO(updated);
     }
 
@@ -83,8 +93,10 @@ public class IncomeServiceImpl implements IncomeService {
         if (!Boolean.TRUE.equals(income.getIsActive())) {
             throw new BusinessException("Receita ja esta inativa");
         }
+        Long projectId = income.getProject() != null ? income.getProject().getId() : null;
         income.setIsActive(false);
         incomeRepository.save(income);
+        projectFinancialSummaryService.refreshIncomeAggregates(projectId, null);
     }
 
     @Override
@@ -96,6 +108,10 @@ public class IncomeServiceImpl implements IncomeService {
         }
         income.setIsActive(true);
         Income restored = incomeRepository.save(income);
+        projectFinancialSummaryService.refreshIncomeAggregates(
+                restored.getProject() != null ? restored.getProject().getId() : null,
+                null
+        );
         return incomeMapper.toDTO(restored);
     }
 

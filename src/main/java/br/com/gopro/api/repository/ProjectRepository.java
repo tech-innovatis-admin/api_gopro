@@ -71,7 +71,15 @@ public interface ProjectRepository extends JpaRepository<Project, Long> {
             from expenses e
             where e.project_id = p.id
               and e.is_active = true
+              and e.payment_status = 'PAGO'
         ), 0) as totalExpenses,
+        coalesce((
+            select sum(e.amount)
+            from expenses e
+            where e.project_id = p.id
+              and e.is_active = true
+              and e.payment_status = 'RESERVADO'
+        ), 0) as totalReserved,
         (
             coalesce((
                 select sum(i.amount)
@@ -85,6 +93,31 @@ public interface ProjectRepository extends JpaRepository<Project, Long> {
                 from expenses e
                 where e.project_id = p.id
                   and e.is_active = true
+                  and e.payment_status = 'PAGO'
+            ), 0)
+        ) as saldoReal,
+        (
+            coalesce((
+                select sum(i.amount)
+                from incomes i
+                where i.project_id = p.id
+                  and i.is_active = true
+            ), 0)
+            -
+            coalesce((
+                select sum(e.amount)
+                from expenses e
+                where e.project_id = p.id
+                  and e.is_active = true
+                  and e.payment_status = 'PAGO'
+            ), 0)
+            -
+            coalesce((
+                select sum(e.amount)
+                from expenses e
+                where e.project_id = p.id
+                  and e.is_active = true
+                  and e.payment_status = 'RESERVADO'
             ), 0)
         ) as saldo
     from projects p

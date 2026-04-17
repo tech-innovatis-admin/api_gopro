@@ -3,6 +3,8 @@ package br.com.gopro.api.service;
 import br.com.gopro.api.dtos.ExpenseRequestDTO;
 import br.com.gopro.api.dtos.ExpenseResponseDTO;
 import br.com.gopro.api.dtos.ExpenseUpdateDTO;
+import br.com.gopro.api.enums.ExpensePaidByEnum;
+import br.com.gopro.api.enums.ExpensePaymentStatusEnum;
 import br.com.gopro.api.exception.BusinessException;
 import br.com.gopro.api.mapper.ExpenseMapper;
 import br.com.gopro.api.model.BudgetCategory;
@@ -68,6 +70,9 @@ class ExpenseServiceImplTest {
     @Mock
     private ProjectRepository projectRepository;
 
+    @Mock
+    private ProjectFinancialSummaryService projectFinancialSummaryService;
+
     @InjectMocks
     private ExpenseServiceImpl service;
 
@@ -81,6 +86,8 @@ class ExpenseServiceImplTest {
                 LocalDate.of(2026, 3, 17),
                 1,
                 new BigDecimal("250.00"),
+                ExpensePaymentStatusEnum.PAGO,
+                ExpensePaidByEnum.INNOVATIS,
                 null,
                 null,
                 "Servico especializado",
@@ -131,6 +138,8 @@ class ExpenseServiceImplTest {
                 LocalDate.of(2026, 3, 17),
                 1,
                 new BigDecimal("80.00"),
+                ExpensePaymentStatusEnum.PAGO,
+                ExpensePaidByEnum.INNOVATIS,
                 null,
                 null,
                 "Despesa derivada",
@@ -167,6 +176,8 @@ class ExpenseServiceImplTest {
                 LocalDate.of(2026, 3, 17),
                 1,
                 new BigDecimal("80.00"),
+                ExpensePaymentStatusEnum.PAGO,
+                ExpensePaidByEnum.INNOVATIS,
                 null,
                 null,
                 "Despesa invalida",
@@ -206,6 +217,8 @@ class ExpenseServiceImplTest {
                 LocalDate.of(2026, 3, 17),
                 2,
                 new BigDecimal("150.00"),
+                ExpensePaymentStatusEnum.PAGO,
+                ExpensePaidByEnum.EXECUCAO,
                 null,
                 null,
                 "Despesa atualizada",
@@ -229,6 +242,9 @@ class ExpenseServiceImplTest {
             if (update.amount() != null) {
                 expense.setAmount(update.amount());
             }
+            if (update.paidBy() != null) {
+                expense.setPaidBy(update.paidBy());
+            }
             if (update.description() != null) {
                 expense.setDescription(update.description());
             }
@@ -247,6 +263,7 @@ class ExpenseServiceImplTest {
         assertThat(existingExpense.getExpenseDate()).isEqualTo(LocalDate.of(2026, 3, 17));
         assertThat(existingExpense.getQuantity()).isEqualTo(2);
         assertThat(existingExpense.getAmount()).isEqualByComparingTo("150.00");
+        assertThat(existingExpense.getPaidBy()).isEqualTo(ExpensePaidByEnum.EXECUCAO);
         assertThat(existingExpense.getDescription()).isEqualTo("Despesa atualizada");
         assertThat(result.projectId()).isEqualTo(77L);
         assertThat(result.incomeId()).isNull();
@@ -281,6 +298,8 @@ class ExpenseServiceImplTest {
                 LocalDate.of(2026, 3, 10),
                 1,
                 new BigDecimal("100.00"),
+                ExpensePaymentStatusEnum.PAGO,
+                ExpensePaidByEnum.INNOVATIS,
                 null,
                 null,
                 "Despesa antiga",
@@ -332,6 +351,8 @@ class ExpenseServiceImplTest {
                 expense.getExpenseDate(),
                 expense.getQuantity(),
                 expense.getAmount(),
+                expense.getPaymentStatus(),
+                expense.getPaidBy() != null ? expense.getPaidBy() : ExpensePaidByEnum.INNOVATIS,
                 expense.getPerson() != null ? expense.getPerson().getId() : null,
                 expense.getOrganization() != null ? expense.getOrganization().getId() : null,
                 expense.getDescription(),

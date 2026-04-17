@@ -1,5 +1,6 @@
 package br.com.gopro.api.repository;
 
+import br.com.gopro.api.enums.ExpensePaymentStatusEnum;
 import br.com.gopro.api.model.Expense;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -29,6 +30,19 @@ public interface ExpenseRepository extends JpaRepository<Expense, Long> {
     select coalesce(sum(e.amount), 0)
     from Expense e
     where e.project.id = :projectId
+      and e.isActive = true
+      and e.paymentStatus = :paymentStatus
 """)
-    BigDecimal sumExpenseByProjectId(@Param("projectId") Long projectId);
+    BigDecimal sumExpenseByProjectIdAndPaymentStatus(
+            @Param("projectId") Long projectId,
+            @Param("paymentStatus") ExpensePaymentStatusEnum paymentStatus
+    );
+
+    @Query("""
+    select coalesce(sum(e.amount), 0)
+    from Expense e
+    where e.budgetItem.id = :budgetItemId
+      and e.isActive = true
+""")
+    BigDecimal sumExpenseByBudgetItemId(@Param("budgetItemId") Long budgetItemId);
 }
