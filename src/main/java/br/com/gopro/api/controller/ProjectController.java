@@ -196,7 +196,7 @@ public class ProjectController {
         return ResponseEntity.ok(projectService.restoreProjectById(id));
     }
 
-    @Operation(summary = "Totais do projeto (receitas, despesas e saldo)")
+    @Operation(summary = "Totais do projeto (receitas, pagos, reservados e saldos)")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Totais calculados"),
             @ApiResponse(responseCode = "404", description = "Projeto nao encontrado")

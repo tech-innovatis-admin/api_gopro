@@ -1,5 +1,7 @@
 package br.com.gopro.api.dtos;
 
+import br.com.gopro.api.enums.ExpensePaymentStatusEnum;
+import br.com.gopro.api.enums.ExpensePaidByEnum;
 import jakarta.validation.constraints.NotNull;
 
 import java.math.BigDecimal;
@@ -14,6 +16,8 @@ public record ExpenseRequestDTO(
         @NotNull(message = "Data da despesa e obrigatoria") LocalDate expenseDate,
         @NotNull(message = "Quantidade e obrigatoria") Integer quantity,
         @NotNull(message = "Valor e obrigatorio") BigDecimal amount,
+        @NotNull(message = "Status do pagamento e obrigatorio") ExpensePaymentStatusEnum paymentStatus,
+        ExpensePaidByEnum paidBy,
         Long personId,
         Long organizationId,
         String description,

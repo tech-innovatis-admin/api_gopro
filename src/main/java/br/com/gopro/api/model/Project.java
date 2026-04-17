@@ -101,6 +101,12 @@ public class Project {
     @Column(name = "total_expenses", nullable = false, precision = 35, scale = 2)
     private BigDecimal totalExpenses;
 
+    @Column(name = "total_reserved", nullable = false, precision = 35, scale = 2)
+    private BigDecimal totalReserved;
+
+    @Column(name = "saldo_real", nullable = false, precision = 35, scale = 2)
+    private BigDecimal saldoReal;
+
     @Column(name = "saldo", nullable = false, precision = 35, scale = 2)
     private BigDecimal saldo;
     @Column(name = "is_active")

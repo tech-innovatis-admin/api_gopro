@@ -6,6 +6,8 @@ public record ProjectTotalsDTO(
         Long projectId,
         BigDecimal totalIncome,
         BigDecimal totalExpense,
+        BigDecimal totalReserved,
+        BigDecimal saldoReal,
         BigDecimal saldo
 ) {
 }
