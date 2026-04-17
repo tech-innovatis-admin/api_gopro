@@ -126,6 +126,18 @@ public class ContractAuditChangeEnricher {
             "CLT", "CLT"
     );
 
+    private static final Map<String, String> EXPENSE_PAYMENT_STATUS_LABELS = Map.of(
+            "PAGO", "Pago",
+            "RESERVADO", "Reservado"
+    );
+
+    private static final Map<String, String> EXPENSE_PAID_BY_LABELS = Map.ofEntries(
+            Map.entry("INNOVATIS", "Innovatis"),
+            Map.entry("EXECUCAO", "Execução"),
+            Map.entry("EMPRESA", "Innovatis"),
+            Map.entry("PARCEIRO", "Execução")
+    );
+
     private static final Map<String, String> DISBURSEMENT_STATUS_LABELS = Map.of(
             "PREVISTO", "Previsto",
             "PARCIAL", "Parcial",
@@ -565,6 +577,8 @@ public class ContractAuditChangeEnricher {
                         case "item de rubrica" -> lookupLong(catalog.budgetItemLabels(), rawValue);
                         case "rubrica" -> lookupLong(catalog.budgetCategoryLabels(), rawValue);
                         case "receita" -> lookupLong(catalog.incomeLabels(), rawValue);
+                        case "status do pagamento" -> lookupEnum(EXPENSE_PAYMENT_STATUS_LABELS, rawValue);
+                        case "realizado por" -> lookupEnum(EXPENSE_PAID_BY_LABELS, rawValue);
                         case "pessoa", "pessoa vinculada" -> lookupLong(catalog.peopleLabels(), rawValue);
                         case "organizacao", "organizacao vinculada", "empresa", "empresa vinculada" ->
                                 lookupLong(catalog.organizationLabels(), rawValue);

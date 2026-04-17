@@ -7,6 +7,7 @@ import br.com.gopro.api.dtos.ProjectRequestDTO;
 import br.com.gopro.api.dtos.ProjectResponseDTO;
 import br.com.gopro.api.dtos.ProjectTotalsDTO;
 import br.com.gopro.api.dtos.ProjectUpdateDTO;
+import br.com.gopro.api.enums.ExpensePaymentStatusEnum;
 import br.com.gopro.api.enums.ProjectGovIfEnum;
 import br.com.gopro.api.enums.RoleProjectPeopleEnum;
 import br.com.gopro.api.enums.ProjectStatusEnum;
@@ -104,6 +105,12 @@ public class ProjectServiceImpl implements ProjectService {
             }
             if (project.getTotalExpenses() == null) {
                 project.setTotalExpenses(BigDecimal.ZERO);
+            }
+            if (project.getTotalReserved() == null) {
+                project.setTotalReserved(BigDecimal.ZERO);
+            }
+            if (project.getSaldoReal() == null) {
+                project.setSaldoReal(BigDecimal.ZERO);
             }
             if (project.getSaldo() == null) {
                 project.setSaldo(BigDecimal.ZERO);
@@ -213,10 +220,18 @@ public class ProjectServiceImpl implements ProjectService {
         }
 
         BigDecimal totalIncome = incomeRepository.sumIncomeByProjectId(projectId);
-        BigDecimal totalExpense = expenseRepository.sumExpenseByProjectId(projectId);
-        BigDecimal saldo = totalIncome.subtract(totalExpense);
+        BigDecimal totalExpense = expenseRepository.sumExpenseByProjectIdAndPaymentStatus(
+                projectId,
+                ExpensePaymentStatusEnum.PAGO
+        );
+        BigDecimal totalReserved = expenseRepository.sumExpenseByProjectIdAndPaymentStatus(
+                projectId,
+                ExpensePaymentStatusEnum.RESERVADO
+        );
+        BigDecimal saldoReal = totalIncome.subtract(totalExpense);
+        BigDecimal saldo = saldoReal.subtract(totalReserved);
 
-        return new ProjectTotalsDTO(projectId, totalIncome, totalExpense, saldo);
+        return new ProjectTotalsDTO(projectId, totalIncome, totalExpense, totalReserved, saldoReal, saldo);
     }
 
     @Override

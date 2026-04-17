@@ -34,6 +34,8 @@ public record ProjectResponseDTO(
         Boolean isActive,
         BigDecimal totalReceived,
         BigDecimal totalExpenses,
+        BigDecimal totalReserved,
+        BigDecimal saldoReal,
         BigDecimal saldo,
         LocalDateTime createdAt,
         LocalDateTime updatedAt,

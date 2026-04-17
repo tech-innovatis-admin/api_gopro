@@ -9,5 +9,7 @@ public interface ProjectTotalRow {
     String getProjectStatus();
     BigDecimal getTotalReceived();
     BigDecimal getTotalExpenses();
+    BigDecimal getTotalReserved();
+    BigDecimal getSaldoReal();
     BigDecimal getSaldo();
 }
