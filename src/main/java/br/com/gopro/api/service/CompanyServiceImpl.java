@@ -8,7 +8,10 @@ import br.com.gopro.api.exception.BusinessException;
 import br.com.gopro.api.exception.ResourceNotFoundException;
 import br.com.gopro.api.mapper.CompanyMapper;
 import br.com.gopro.api.model.Company;
+import br.com.gopro.api.model.People;
 import br.com.gopro.api.repository.CompanyRepository;
+import br.com.gopro.api.repository.PeopleRepository;
+import br.com.gopro.api.utils.NormalizeUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -23,10 +26,14 @@ public class CompanyServiceImpl implements CompanyService {
 
     private final CompanyRepository companyRepository;
     private final CompanyMapper companyMapper;
+    private final PeopleRepository peopleRepository;
 
     @Override
     public CompanyResponseDTO createCompany(CompanyRequestDTO dto) {
         Company company = companyMapper.toEntity(dto);
+        company.setCnpj(normalizeCnpj(dto.cnpj()));
+        company.setResponsiblePerson(resolveResponsiblePerson(dto.responsiblePersonId()));
+        ensureUniqueCnpj(company.getCnpj(), null);
         company.setIsActive(true);
         Company saved = companyRepository.save(company);
         return companyMapper.toDTO(saved);
@@ -70,6 +77,11 @@ public class CompanyServiceImpl implements CompanyService {
             throw new BusinessException("Nao e possivel atualizar uma empresa inativa");
         }
         companyMapper.updateEntityFromDTO(dto, company);
+        if (dto.cnpj() != null) {
+            company.setCnpj(normalizeCnpj(dto.cnpj()));
+        }
+        company.setResponsiblePerson(resolveResponsiblePerson(dto.responsiblePersonId()));
+        ensureUniqueCnpj(company.getCnpj(), company.getId());
         Company updated = companyRepository.save(company);
         return companyMapper.toDTO(updated);
     }
@@ -104,5 +116,36 @@ public class CompanyServiceImpl implements CompanyService {
         if (size <= 0 || size > 100) {
             throw new BusinessException("Tamanho da pagina deve estar entre 1 e 100");
         }
+    }
+
+    private void ensureUniqueCnpj(String cnpj, Long currentCompanyId) {
+        companyRepository.findByCnpj(cnpj)
+                .filter(company -> currentCompanyId == null || !company.getId().equals(currentCompanyId))
+                .ifPresent(company -> {
+                    throw new BusinessException("Empresa ja existe para este CNPJ");
+                });
+    }
+
+    private String normalizeCnpj(String cnpj) {
+        String normalized = NormalizeUtils.normalizeCnpj(cnpj);
+        if (normalized == null || normalized.isBlank()) {
+            throw new BusinessException("CNPJ e obrigatorio");
+        }
+        return normalized;
+    }
+
+    private People resolveResponsiblePerson(Long responsiblePersonId) {
+        if (responsiblePersonId == null) {
+            return null;
+        }
+
+        People responsiblePerson = peopleRepository.findById(responsiblePersonId)
+                .orElseThrow(() -> new ResourceNotFoundException("Pessoa responsavel nao encontrada"));
+
+        if (!Boolean.TRUE.equals(responsiblePerson.getIsActive())) {
+            throw new BusinessException("Pessoa responsavel inativa");
+        }
+
+        return responsiblePerson;
     }
 }

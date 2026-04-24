@@ -29,7 +29,10 @@ public record ProjectCompanyDetailedResponseDTO(
         String companyPhone,
         String companyAddress,
         String companyCity,
-        String companyState
+        String companyState,
+        Long companyResponsiblePersonId,
+        String companyResponsiblePersonFullName,
+        String companyResponsiblePersonCpf,
+        String companyResponsiblePersonEmail
 ) {
 }
-

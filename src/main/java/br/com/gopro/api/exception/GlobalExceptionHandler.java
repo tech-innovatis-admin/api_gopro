@@ -69,6 +69,7 @@ public class GlobalExceptionHandler {
             Map.entry("city", "Cidade"),
             Map.entry("state", "UF"),
             Map.entry("contact_person", "Responsavel de contato"),
+            Map.entry("responsible_person_id", "Pessoa responsavel"),
             Map.entry("project_id", "Contrato"),
             Map.entry("partner_id", "Parceiro"),
             Map.entry("primary_partner_id", "Parceiro primario"),
