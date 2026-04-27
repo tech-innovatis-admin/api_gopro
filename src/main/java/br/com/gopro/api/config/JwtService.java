@@ -53,11 +53,7 @@ public class JwtService {
     }
 
     public AuthenticatedUserPrincipal parseAccessToken(String token) {
-        Claims claims = Jwts.parser()
-                .verifyWith(signingKey())
-                .build()
-                .parseSignedClaims(token)
-                .getPayload();
+        Claims claims = parseClaims(token);
 
         String subject = claims.getSubject();
         if (subject == null || subject.isBlank()) {
@@ -74,11 +70,27 @@ public class JwtService {
         return new AuthenticatedUserPrincipal(Long.parseLong(subject), email, role);
     }
 
+    public Instant extractIssuedAt(String token) {
+        Date issuedAt = parseClaims(token).getIssuedAt();
+        if (issuedAt == null) {
+            throw new IllegalArgumentException("Token sem issuedAt");
+        }
+        return issuedAt.toInstant();
+    }
+
     public long getJwtExpirationSeconds() {
         return jwtExpirationSeconds;
     }
 
     private SecretKey signingKey() {
         return Keys.hmacShaKeyFor(jwtSecret.getBytes(StandardCharsets.UTF_8));
+    }
+
+    private Claims parseClaims(String token) {
+        return Jwts.parser()
+                .verifyWith(signingKey())
+                .build()
+                .parseSignedClaims(token)
+                .getPayload();
     }
 }

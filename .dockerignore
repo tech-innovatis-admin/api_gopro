@@ -17,13 +17,13 @@ hs_err_pid*
 replay_pid*
 storage/
 
-.env
-.env.*
+.env.local
+.env.local
 .envrc
 *.local
 *.tmp
 **/.DS_Store
-!.env.example
+!.env.local
 .classpath
 .factorypath
 .project

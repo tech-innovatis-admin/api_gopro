@@ -9,6 +9,7 @@ import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
 
 @Entity
@@ -50,6 +51,9 @@ public class AppUser {
 
     @Column(name = "notifications_last_read_at")
     private LocalDateTime notificationsLastReadAt;
+
+    @Column(name = "auth_tokens_invalid_before")
+    private Instant authTokensInvalidBefore;
 
     @Column(name = "is_active", nullable = false)
     private Boolean isActive;

@@ -37,6 +37,7 @@ public class ExpenseServiceImpl implements ExpenseService {
     private final OrganizationRepository organizationRepository;
     private final DocumentRepository documentRepository;
     private final ProjectRepository projectRepository;
+    private final EmailService emailService;
 
     @Override
     public ExpenseResponseDTO createExpense(ExpenseRequestDTO dto) {

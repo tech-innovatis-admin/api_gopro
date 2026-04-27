@@ -9,6 +9,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.util.Collection;
 import java.util.Optional;
 
 @Repository
@@ -31,4 +32,19 @@ public interface AppUserRepository extends JpaRepository<AppUser, Long>, JpaSpec
     boolean existsByUsernameIgnoreCase(String username);
 
     boolean existsByRoleAndStatusAndIsActive(UserRoleEnum role, UserStatusEnum status, Boolean isActive);
+
+    @Query("""
+            SELECT u
+            FROM AppUser u
+            WHERE u.isActive = true
+              AND u.status = :status
+              AND u.role IN :roles
+              AND u.email IS NOT NULL
+              AND trim(u.email) <> ''
+            ORDER BY u.fullName ASC, u.id ASC
+            """)
+    java.util.List<AppUser> findAllByIsActiveTrueAndStatusAndRoleInAndEmailIsNotNull(
+            @Param("status") UserStatusEnum status,
+            @Param("roles") Collection<UserRoleEnum> roles
+    );
 }
