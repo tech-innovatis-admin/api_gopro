@@ -33,6 +33,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
@@ -56,6 +57,7 @@ public class AllowedRegistrationServiceImpl implements AllowedRegistrationServic
     private final AuditLogService auditLogService;
     private final PasswordPolicyService passwordPolicyService;
     private final RateLimitService rateLimitService;
+    private final EmailService emailService;
 
     @Value("${app.auth.invite.base-url:http://localhost:3000/register}")
     private String inviteBaseUrl;
@@ -70,6 +72,7 @@ public class AllowedRegistrationServiceImpl implements AllowedRegistrationServic
     private long rateLimitWindowSeconds;
 
     @Override
+    @Transactional
     public AllowedRegistrationResponseDTO createInvite(
             AllowedRegistrationCreateRequestDTO dto,
             AuthenticatedUserPrincipal actor,
@@ -106,7 +109,19 @@ public class AllowedRegistrationServiceImpl implements AllowedRegistrationServic
         invite.setUpdatedBy(actor.id());
 
         AllowedRegistration saved = allowedRegistrationRepository.save(invite);
-        AllowedRegistrationResponseDTO response = toDTO(saved, buildInviteLink(rawToken));
+        String inviteLink = buildInviteLink(rawToken);
+
+        EmailService.EmailDispatchResult emailResult = emailService.sendInviteEmail(
+                saved.getEmail(),
+                saved.getRole(),
+                inviteLink,
+                saved.getExpiresAt()
+        );
+        if (!emailResult.success()) {
+            throw new BusinessException("Nao foi possivel enviar o email do convite: " + emailResult.message());
+        }
+
+        AllowedRegistrationResponseDTO response = toDTO(saved, inviteLink);
 
         Map<String, Object> after = snapshot(saved);
         auditLogService.log(
@@ -219,6 +234,7 @@ public class AllowedRegistrationServiceImpl implements AllowedRegistrationServic
     }
 
     @Override
+    @Transactional
     public AllowedRegistrationResponseDTO reissueInvite(
             Long id,
             AllowedRegistrationReissueRequestDTO dto,
@@ -250,6 +266,18 @@ public class AllowedRegistrationServiceImpl implements AllowedRegistrationServic
         invite.setUpdatedBy(actor.id());
 
         AllowedRegistration saved = allowedRegistrationRepository.save(invite);
+        String inviteLink = buildInviteLink(rawToken);
+
+        EmailService.EmailDispatchResult emailResult = emailService.sendInviteEmail(
+                saved.getEmail(),
+                saved.getRole(),
+                inviteLink,
+                saved.getExpiresAt()
+        );
+        if (!emailResult.success()) {
+            throw new BusinessException("Nao foi possivel enviar o email do convite: " + emailResult.message());
+        }
+
         Map<String, Object> after = snapshot(saved);
         auditLogService.log(
                 AuditEventRequest.builder()
@@ -272,7 +300,7 @@ public class AllowedRegistrationServiceImpl implements AllowedRegistrationServic
                 request
         );
 
-        return toDTO(saved, buildInviteLink(rawToken));
+        return toDTO(saved, inviteLink);
     }
 
     @Override

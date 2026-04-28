@@ -54,6 +54,8 @@ class AllowedRegistrationServiceImplTest {
     @Mock
     private RateLimitService rateLimitService;
     @Mock
+    private EmailService emailService;
+    @Mock
     private HttpServletRequest request;
 
     @InjectMocks
@@ -80,6 +82,8 @@ class AllowedRegistrationServiceImplTest {
                     value.setId(1L);
                     return value;
                 });
+        when(emailService.sendInviteEmail(eq("analista@empresa.com"), eq(UserRoleEnum.ANALISTA), anyString(), any()))
+                .thenReturn(new EmailService.EmailDispatchResult(true, 202, null, null, "ok"));
 
         AllowedRegistrationCreateRequestDTO dto = new AllowedRegistrationCreateRequestDTO(
                 "analista@empresa.com",
@@ -101,6 +105,7 @@ class AllowedRegistrationServiceImplTest {
         assertThat(persisted.getStatus()).isEqualTo(AllowedRegistrationStatusEnum.PENDING);
         assertThat(response.email()).isEqualTo("analista@empresa.com");
         assertThat(response.inviteLink()).contains("token=");
+        verify(emailService).sendInviteEmail(eq("analista@empresa.com"), eq(UserRoleEnum.ANALISTA), eq(response.inviteLink()), any());
 
         ArgumentCaptor<AuditEventRequest> auditCaptor = ArgumentCaptor.forClass(AuditEventRequest.class);
         verify(auditLogService).log(auditCaptor.capture(), eq(request));
@@ -112,6 +117,36 @@ class AllowedRegistrationServiceImplTest {
                         "auditAction", AuditActions.INVITE_CREATED,
                         "inviteAction", AuditActions.INVITE_CREATED
                 ));
+    }
+
+    @Test
+    void createInvite_shouldFailWhenInviteEmailCannotBeSent() {
+        when(allowedRegistrationRepository.findAll(any(org.springframework.data.jpa.domain.Specification.class)))
+                .thenReturn(List.of());
+        when(appUserRepository.findById(99L)).thenReturn(Optional.of(inviter(99L)));
+        when(allowedRegistrationRepository.findByEmailIgnoreCase("analista@empresa.com"))
+                .thenReturn(Optional.empty());
+        when(allowedRegistrationRepository.save(any(AllowedRegistration.class)))
+                .thenAnswer(invocation -> {
+                    AllowedRegistration value = invocation.getArgument(0);
+                    value.setId(1L);
+                    return value;
+                });
+        when(emailService.sendInviteEmail(eq("analista@empresa.com"), eq(UserRoleEnum.ANALISTA), anyString(), any()))
+                .thenReturn(new EmailService.EmailDispatchResult(false, 502, null, null, "falha"));
+
+        AllowedRegistrationCreateRequestDTO dto = new AllowedRegistrationCreateRequestDTO(
+                "analista@empresa.com",
+                UserRoleEnum.ANALISTA,
+                LocalDateTime.now().plusDays(2)
+        );
+        AuthenticatedUserPrincipal actor = new AuthenticatedUserPrincipal(99L, "admin@empresa.com", UserRoleEnum.SUPERADMIN);
+
+        assertThatThrownBy(() -> service.createInvite(dto, actor, request))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("Nao foi possivel enviar o email do convite");
+
+        verify(auditLogService, never()).log(any(), any());
     }
 
     @Test
