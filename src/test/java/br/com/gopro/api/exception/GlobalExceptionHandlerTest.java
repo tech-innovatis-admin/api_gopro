@@ -57,6 +57,30 @@ class GlobalExceptionHandlerTest {
     }
 
     @Test
+    void handleDataIntegrityViolation_shouldExposeBudgetCategoryProjectNameConstraint() {
+        DataIntegrityViolationException exception = new DataIntegrityViolationException(
+                "insert failed",
+                new RuntimeException(
+                        """
+                        ERROR: duplicate key value violates unique constraint "uq_budget_categories_project_name"
+                          Detail: Key (project_id, name)=(10, Material de consumo) already exists.
+                        """
+                )
+        );
+
+        ResponseEntity<ErrorResponse> response = handler.handleDataIntegrityViolation(exception, request());
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+        assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody().message()).isEqualTo("Ja existe uma rubrica com este nome neste contrato.");
+        assertThat(response.getBody().fieldErrors())
+                .containsExactly(
+                        new ErrorResponse.FieldError("projectId", "Contrato ja possui uma rubrica com este nome."),
+                        new ErrorResponse.FieldError("name", "Ja existe uma rubrica com este nome neste contrato.")
+                );
+    }
+
+    @Test
     void handleDataIntegrityViolation_shouldExplainTextLimit_whenValueTooLong() {
         DataIntegrityViolationException exception = new DataIntegrityViolationException(
                 "insert failed",

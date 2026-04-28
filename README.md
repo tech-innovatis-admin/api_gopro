@@ -47,6 +47,11 @@ Configuracoes:
 ## Observacoes
 - Erros sao padronizados via `GlobalExceptionHandler`.
 
+## Rubricas
+
+Categorias orcamentarias (`budget_categories`) podem repetir o mesmo `name` em contratos/projetos diferentes.
+Dentro do mesmo contrato/projeto (`projectId`), o `name` continua unico.
+
 ## Empresas
 
 Os endpoints de empresas e a listagem detalhada de empresas por projeto agora suportam um responsavel opcional:

@@ -14,6 +14,8 @@ import java.util.Optional;
 public interface BudgetCategoryRepository extends JpaRepository<BudgetCategory, Long> {
     Page<BudgetCategory> findByIsActiveTrue(Pageable pageable);
     Page<BudgetCategory> findByIsActiveTrueAndProject_Id(Long projectId, Pageable pageable);
+    boolean existsByProject_IdAndName(Long projectId, String name);
+    boolean existsByProject_IdAndNameAndIdNot(Long projectId, String name, Long id);
 
     @Query("select c.project.id from BudgetCategory c where c.id = :id")
     Optional<Long> findProjectIdById(@Param("id") Long id);

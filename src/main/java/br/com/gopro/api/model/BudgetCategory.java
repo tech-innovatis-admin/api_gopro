@@ -10,7 +10,15 @@ import org.hibernate.annotations.UpdateTimestamp;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "budget_categories")
+@Table(
+        name = "budget_categories",
+        uniqueConstraints = {
+                @UniqueConstraint(
+                        name = "uq_budget_categories_project_name",
+                        columnNames = {"project_id", "name"}
+                )
+        }
+)
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
@@ -27,7 +35,7 @@ public class BudgetCategory {
     @Column(name = "code", length = 50, unique = true)
     private String code;
 
-    @Column(name = "name", length = 255, nullable = false, unique = true)
+    @Column(name = "name", length = 255, nullable = false)
     private String name;
 
     @Column(name = "description", columnDefinition = "text")

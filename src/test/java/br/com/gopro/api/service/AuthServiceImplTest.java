@@ -177,7 +177,7 @@ class AuthServiceImplTest {
                 request
         ))
                 .isInstanceOf(BusinessException.class)
-                .hasMessageContaining("nao foi possivel completar a operacao");
+                .hasMessageContaining("não foi possivel completar a operação");
 
         verify(passwordResetTokenRepository).save(any(PasswordResetToken.class));
         verify(emailService).sendPasswordResetEmail(eq("admin@empresa.com"), eq("Administrador"), any(), any());

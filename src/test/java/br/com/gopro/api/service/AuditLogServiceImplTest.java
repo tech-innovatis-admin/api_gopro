@@ -34,7 +34,6 @@ import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -72,19 +71,6 @@ class AuditLogServiceImplTest {
 
     @Test
     void log_shouldIgnoreNonContractAuditScopes() {
-        AppUser actor = new AppUser();
-        actor.setId(7L);
-        actor.setEmail("admin@empresa.com");
-        actor.setFullName("Admin");
-
-        when(appUserRepository.findById(7L)).thenReturn(Optional.of(actor));
-        when(request.getHeader(anyString())).thenReturn(null);
-        when(request.getHeader("X-Forwarded-For")).thenReturn("10.0.0.1, 10.0.0.2");
-        when(request.getHeader("User-Agent")).thenReturn("JUnit");
-        when(request.getHeader("X-Request-Id")).thenReturn("req-123");
-        when(request.getRequestURI()).thenReturn("/admin/users/7");
-        when(request.getMethod()).thenReturn("PATCH");
-
         AuditEventRequest event = AuditEventRequest.builder()
                 .actorUserId(7L)
                 .tipoAuditoria(AuditScopeEnum.USERS)

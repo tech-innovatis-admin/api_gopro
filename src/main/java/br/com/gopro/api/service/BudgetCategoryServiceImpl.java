@@ -27,6 +27,7 @@ public class BudgetCategoryServiceImpl implements BudgetCategoryService {
     @Override
     public BudgetCategoryResponseDTO createBudgetCategory(BudgetCategoryRequestDTO dto) {
         BudgetCategory budgetCategory = budgetCategoryMapper.toEntity(dto);
+        validateUniqueNameWithinProject(budgetCategory);
         budgetCategory.setIsActive(true);
         BudgetCategory saved = budgetCategoryRepository.save(budgetCategory);
         return budgetCategoryMapper.toDTO(saved);
@@ -72,6 +73,7 @@ public class BudgetCategoryServiceImpl implements BudgetCategoryService {
             throw new BusinessException("Nao e possivel atualizar uma categoria inativa");
         }
         budgetCategoryMapper.updateEntityFromDTO(dto, budgetCategory);
+        validateUniqueNameWithinProject(budgetCategory);
         BudgetCategory updated = budgetCategoryRepository.save(budgetCategory);
         return budgetCategoryMapper.toDTO(updated);
     }
@@ -106,5 +108,24 @@ public class BudgetCategoryServiceImpl implements BudgetCategoryService {
         if (size <= 0 || size > 100) {
             throw new BusinessException("Tamanho da pagina deve estar entre 1 e 100");
         }
+    }
+
+    private void validateUniqueNameWithinProject(BudgetCategory budgetCategory) {
+        Long projectId = resolveProjectId(budgetCategory);
+        String name = budgetCategory.getName();
+        if (projectId == null || name == null || name.isBlank()) {
+            return;
+        }
+
+        boolean alreadyExists = budgetCategory.getId() == null
+                ? budgetCategoryRepository.existsByProject_IdAndName(projectId, name)
+                : budgetCategoryRepository.existsByProject_IdAndNameAndIdNot(projectId, name, budgetCategory.getId());
+        if (alreadyExists) {
+            throw new BusinessException("Ja existe uma rubrica com este nome neste contrato.");
+        }
+    }
+
+    private Long resolveProjectId(BudgetCategory budgetCategory) {
+        return budgetCategory.getProject() == null ? null : budgetCategory.getProject().getId();
     }
 }

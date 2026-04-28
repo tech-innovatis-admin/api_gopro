@@ -305,6 +305,16 @@ public class GlobalExceptionHandler {
                     null
             );
         }
+        if (normalizedDetails.contains("uq_budget_categories_project_name")) {
+            return new ParsedDataIntegrityError(
+                    HttpStatus.CONFLICT,
+                    "Ja existe uma rubrica com este nome neste contrato.",
+                    List.of(
+                            new ErrorResponse.FieldError("projectId", "Contrato ja possui uma rubrica com este nome."),
+                            new ErrorResponse.FieldError("name", "Ja existe uma rubrica com este nome neste contrato.")
+                    )
+            );
+        }
         if (normalizedDetails.contains("fk_project_people_person_id")) {
             return new ParsedDataIntegrityError(
                     HttpStatus.CONFLICT,
