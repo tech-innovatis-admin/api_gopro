@@ -33,5 +33,20 @@ public interface AppUserRepository extends JpaRepository<AppUser, Long>, JpaSpec
 
     boolean existsByRoleAndStatusAndIsActive(UserRoleEnum role, UserStatusEnum status, Boolean isActive);
 
+    @Query("""
+            SELECT u
+            FROM AppUser u
+            WHERE u.isActive = true
+              AND u.status = :status
+              AND u.role IN :roles
+              AND u.email IS NOT NULL
+              AND trim(u.email) <> ''
+            ORDER BY u.fullName ASC, u.id ASC
+            """)
+    java.util.List<AppUser> findAllByIsActiveTrueAndStatusAndRoleInAndEmailIsNotNull(
+            @Param("status") UserStatusEnum status,
+            @Param("roles") Collection<UserRoleEnum> roles
+    );
+
     boolean existsByRoleInAndStatusAndIsActive(Collection<UserRoleEnum> roles, UserStatusEnum status, Boolean isActive);
 }

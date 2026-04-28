@@ -18,6 +18,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 
@@ -49,6 +50,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         try {
             AuthenticatedUserPrincipal tokenPrincipal = jwtService.parseAccessToken(token);
+            Instant issuedAt = jwtService.extractIssuedAt(token);
             Optional<AppUser> appUserOpt = appUserRepository.findById(tokenPrincipal.id());
             if (appUserOpt.isEmpty()) {
                 filterChain.doFilter(request, response);
@@ -57,6 +59,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
             AppUser appUser = appUserOpt.get();
             if (!Boolean.TRUE.equals(appUser.getIsActive()) || appUser.getStatus() != UserStatusEnum.ACTIVE) {
+                filterChain.doFilter(request, response);
+                return;
+            }
+            if (appUser.getAuthTokensInvalidBefore() != null
+                    && issuedAt.isBefore(appUser.getAuthTokensInvalidBefore())) {
                 filterChain.doFilter(request, response);
                 return;
             }

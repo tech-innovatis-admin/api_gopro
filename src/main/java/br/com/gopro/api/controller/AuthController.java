@@ -3,11 +3,14 @@ package br.com.gopro.api.controller;
 import br.com.gopro.api.config.AuthenticatedUserPrincipal;
 import br.com.gopro.api.config.SecurityPrincipalUtils;
 import br.com.gopro.api.dtos.AuditLogResponseDTO;
+import br.com.gopro.api.dtos.AuthForgotPasswordRequestDTO;
 import br.com.gopro.api.dtos.AuthLoginRequestDTO;
 import br.com.gopro.api.dtos.AuthLoginResponseDTO;
 import br.com.gopro.api.dtos.AuthNotificationsReadResponseDTO;
 import br.com.gopro.api.dtos.AuthNotificationResponseDTO;
+import br.com.gopro.api.dtos.AuthResetPasswordRequestDTO;
 import br.com.gopro.api.dtos.AuthUserResponseDTO;
+import br.com.gopro.api.dtos.MessageResponseDTO;
 import br.com.gopro.api.dtos.PageResponseDTO;
 import br.com.gopro.api.service.AuditLogService;
 import br.com.gopro.api.service.AuthService;
@@ -42,6 +45,24 @@ public class AuthController {
             HttpServletRequest request
     ) {
         return ResponseEntity.ok(authService.login(dto, request));
+    }
+
+    @Operation(summary = "Solicitar reset de senha")
+    @PostMapping("/forgot-password")
+    public ResponseEntity<MessageResponseDTO> forgotPassword(
+            @Valid @RequestBody AuthForgotPasswordRequestDTO dto,
+            HttpServletRequest request
+    ) {
+        return ResponseEntity.ok(authService.forgotPassword(dto, request));
+    }
+
+    @Operation(summary = "Redefinir senha com token")
+    @PostMapping("/reset-password")
+    public ResponseEntity<MessageResponseDTO> resetPassword(
+            @Valid @RequestBody AuthResetPasswordRequestDTO dto,
+            HttpServletRequest request
+    ) {
+        return ResponseEntity.ok(authService.resetPassword(dto, request));
     }
 
     @Operation(summary = "Dados do usuario autenticado")
