@@ -7,6 +7,7 @@ import br.com.gopro.api.dtos.AuthLoginResponseDTO;
 import br.com.gopro.api.dtos.AuthResetPasswordRequestDTO;
 import br.com.gopro.api.enums.UserRoleEnum;
 import br.com.gopro.api.enums.UserStatusEnum;
+import br.com.gopro.api.exception.BusinessException;
 import br.com.gopro.api.model.PasswordResetToken;
 import br.com.gopro.api.exception.UnauthorizedException;
 import br.com.gopro.api.model.AppUser;
@@ -109,7 +110,7 @@ class AuthServiceImplTest {
 
         assertThatThrownBy(() -> service.login(new AuthLoginRequestDTO("admin", "errada"), request))
                 .isInstanceOf(UnauthorizedException.class)
-                .hasMessageContaining("Credenciais invalidas");
+                .hasMessageContaining("Credenciais");
 
         String expectedKey = "login:10.10.10.10:admin";
         verify(rateLimitService).ensureWithinLimit(expectedKey, 5, 900L);
@@ -118,19 +119,20 @@ class AuthServiceImplTest {
     }
 
     @Test
-    void forgotPassword_shouldAlwaysReturnGenericMessageWhenEmailDoesNotExist() {
+    void forgotPassword_shouldThrowBusinessExceptionWhenEmailDoesNotExist() {
         when(request.getHeader("X-Forwarded-For")).thenReturn("203.0.113.10");
         when(appUserRepository.findByEmailIgnoreCase("ghost@empresa.com")).thenReturn(Optional.empty());
 
-        var response = service.forgotPassword(
+        assertThatThrownBy(() -> service.forgotPassword(
                 new AuthForgotPasswordRequestDTO("ghost@empresa.com"),
                 request
-        );
+        ))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("cadastrado");
 
         verify(rateLimitService).checkRateLimit("forgot-password:203.0.113.10:ghost@empresa.com", 3, 900L);
         verify(passwordResetTokenRepository, never()).save(any());
         verify(emailService, never()).sendPasswordResetEmail(any(), any(), any(), any());
-        assertThat(response.message()).contains("Se existir uma conta");
     }
 
     @Test
@@ -144,7 +146,7 @@ class AuthServiceImplTest {
         when(emailService.sendPasswordResetEmail(eq("admin@empresa.com"), eq("Administrador"), any(), any()))
                 .thenReturn(new EmailService.EmailDispatchResult(true, 202, null, null, "ok"));
 
-        service.forgotPassword(new AuthForgotPasswordRequestDTO("Admin@Empresa.com"), request);
+        var response = service.forgotPassword(new AuthForgotPasswordRequestDTO("Admin@Empresa.com"), request);
 
         ArgumentCaptor<PasswordResetToken> tokenCaptor = ArgumentCaptor.forClass(PasswordResetToken.class);
         ArgumentCaptor<String> linkCaptor = ArgumentCaptor.forClass(String.class);
@@ -154,6 +156,28 @@ class AuthServiceImplTest {
         assertThat(tokenCaptor.getValue().getTokenHash()).hasSize(64);
         assertThat(linkCaptor.getValue()).startsWith("http://localhost:3000/reset-password?token=");
         assertThat(tokenCaptor.getValue().getTokenHash()).doesNotContain("http://localhost:3000");
+        assertThat(response.message()).contains("link de redefini");
+    }
+
+    @Test
+    void forgotPassword_shouldThrowBusinessExceptionWhenEmailDispatchFails() {
+        AppUser user = activeUser();
+        when(request.getHeader("X-Forwarded-For")).thenReturn("203.0.113.10");
+        when(appUserRepository.findByEmailIgnoreCase("admin@empresa.com")).thenReturn(Optional.of(user));
+        when(passwordResetTokenRepository.save(any(PasswordResetToken.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+        when(emailService.sendPasswordResetEmail(eq("admin@empresa.com"), eq("Administrador"), any(), any()))
+                .thenReturn(new EmailService.EmailDispatchResult(false, 400, null, null, "SendGrid nao configurado completamente"));
+
+        assertThatThrownBy(() -> service.forgotPassword(
+                new AuthForgotPasswordRequestDTO("admin@empresa.com"),
+                request
+        ))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("nao foi possivel completar a operacao");
+
+        verify(passwordResetTokenRepository).save(any(PasswordResetToken.class));
+        verify(emailService).sendPasswordResetEmail(eq("admin@empresa.com"), eq("Administrador"), any(), any());
     }
 
     @Test

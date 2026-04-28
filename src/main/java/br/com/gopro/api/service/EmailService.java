@@ -56,14 +56,14 @@ public class EmailService {
             long daysRemaining
     ) {
         if (!enabled) {
-            return EmailDispatchResult.disabled("Envio de email desabilitado por configuracao");
+            return EmailDispatchResult.disabled("Envio de email desabilitado por configuração");
         }
         if (project == null || project.getId() == null || project.getEndDate() == null) {
-            return EmailDispatchResult.invalid("Projeto invalido para envio de email de prazo");
+            return EmailDispatchResult.invalid("Projeto inválido para envio de email de prazo");
         }
         if (apiKey == null || apiKey.isBlank() || fromEmail == null || fromEmail.isBlank()) {
-            log.warn("sendgrid nao configurado completamente; envio de email de prazo ignorado");
-            return EmailDispatchResult.invalid("SendGrid nao configurado completamente");
+            log.warn("sendgrid não configurado completamente; envio de email de prazo ignorado");
+            return EmailDispatchResult.invalid("SendGrid não configurado completamente");
         }
 
         Mail mail = new Mail();
@@ -100,10 +100,10 @@ public class EmailService {
             String message
     ) {
         if (!enabled) {
-            return EmailDispatchResult.disabled("Envio de email desabilitado por configuracao");
+            return EmailDispatchResult.disabled("Envio de email desabilitado por configuração");
         }
         if (apiKey == null || apiKey.isBlank() || fromEmail == null || fromEmail.isBlank()) {
-            return EmailDispatchResult.invalid("SendGrid nao configurado completamente");
+            return EmailDispatchResult.invalid("SendGrid não configurado completamente");
         }
 
         Mail mail = new Mail();
@@ -125,13 +125,13 @@ public class EmailService {
             LocalDateTime expiresAt
     ) {
         if (!enabled) {
-            return EmailDispatchResult.disabled("Envio de email desabilitado por configuracao");
+            return EmailDispatchResult.disabled("Envio de email desabilitado por configuração");
         }
         if (apiKey == null || apiKey.isBlank() || fromEmail == null || fromEmail.isBlank()) {
-            return EmailDispatchResult.invalid("SendGrid nao configurado completamente");
+            return EmailDispatchResult.invalid("SendGrid não configurado completamente");
         }
         if (email == null || email.isBlank() || inviteLink == null || inviteLink.isBlank()) {
-            return EmailDispatchResult.invalid("Dados invalidos para envio do convite");
+            return EmailDispatchResult.invalid("Dados inválidos para envio do convite");
         }
 
         Mail mail = new Mail();
@@ -163,13 +163,13 @@ public class EmailService {
             LocalDateTime expiresAt
     ) {
         if (!enabled) {
-            return EmailDispatchResult.disabled("Envio de email desabilitado por configuracao");
+            return EmailDispatchResult.disabled("Envio de email desabilitado por configuração");
         }
         if (apiKey == null || apiKey.isBlank() || fromEmail == null || fromEmail.isBlank()) {
-            return EmailDispatchResult.invalid("SendGrid nao configurado completamente");
+            return EmailDispatchResult.invalid("SendGrid não configurado completamente");
         }
         if (email == null || email.isBlank() || resetLink == null || resetLink.isBlank()) {
-            return EmailDispatchResult.invalid("Dados invalidos para envio do reset de senha");
+            return EmailDispatchResult.invalid("Dados inválidos para envio do reset de senha");
         }
 
         Mail mail = new Mail();
@@ -186,7 +186,7 @@ public class EmailService {
             mail.setTemplateId(passwordResetTemplateId);
         } else {
             mail.addPersonalization(personalization);
-            mail.setSubject("Redefinicao de senha da plataforma GoPro");
+            mail.setSubject("Redefinição de senha da plataforma GoPro");
             mail.addContent(new Content("text/plain", buildPasswordResetBody(recipientName, resetLink, expiresAt)));
         }
 
@@ -291,20 +291,20 @@ public class EmailService {
     }
 
     private String buildInviteBody(UserRoleEnum role, String inviteLink, LocalDateTime expiresAt) {
-        return "Voce recebeu um convite para acessar a plataforma GoPro. Acesse o link abaixo para concluir o seu cadastro.\n\n"
+        return "Você recebeu um convite para acessar a plataforma GoPro. Acesse o link abaixo para concluir o seu cadastro.\n\n"
                 + "Perfil: " + buildRoleLabel(role) + "\n"
                 + "Link de cadastro: " + inviteLink + "\n"
                 + "Validade: " + formatDateTime(expiresAt) + "\n";
     }
 
     private String buildPasswordResetBody(String recipientName, String resetLink, LocalDateTime expiresAt) {
-        String greeting = recipientName == null || recipientName.isBlank() ? "Ola" : "Ola, " + recipientName;
+        String greeting = recipientName == null || recipientName.isBlank() ? "Olá" : "Olá, " + recipientName;
         return greeting + ",\n\n"
-                + "Recebemos uma solicitacao para redefinir sua senha.\n"
+                + "Recebemos uma solicitação para redefinir sua senha.\n"
                 + "Use o link abaixo para continuar:\n"
                 + resetLink + "\n\n"
                 + "Validade: " + formatDateTime(expiresAt) + "\n"
-                + "Se voce nao solicitou a redefinicao, ignore este email.\n";
+                + "Se você não solicitou a redefinição, ignore este email.\n";
     }
 
     private String buildRoleLabel(UserRoleEnum role) {

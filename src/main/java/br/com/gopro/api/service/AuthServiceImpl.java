@@ -46,10 +46,14 @@ import java.util.Optional;
 @Slf4j
 public class AuthServiceImpl implements AuthService {
 
-    private static final String GENERIC_INVALID_CREDENTIALS = "Credenciais invalidas";
-    private static final String GENERIC_FORGOT_PASSWORD_MESSAGE =
-            "Se existir uma conta com este e-mail, enviaremos um link para redefinicao de senha.";
-    private static final String INVALID_RESET_TOKEN_MESSAGE = "Token invalido ou expirado";
+    private static final String GENERIC_INVALID_CREDENTIALS = "Credenciais inválidas";
+    private static final String FORGOT_PASSWORD_EMAIL_NOT_REGISTERED_MESSAGE =
+            "Este e-mail não está cadastrado na plataforma.";
+    private static final String FORGOT_PASSWORD_EMAIL_SENT_MESSAGE =
+            "Você recebeu um e-mail com o link de redefinição de senha.";
+    private static final String FORGOT_PASSWORD_EMAIL_FAILED_MESSAGE =
+            "Infelizmente não foi possivel completar a operação. Tente novamente mais tarde.";
+    private static final String INVALID_RESET_TOKEN_MESSAGE = "Token inválido ou expirado";
     private static final long MAX_AVATAR_SIZE_BYTES = 20L * 1024L * 1024L;
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
 
@@ -192,12 +196,12 @@ public class AuthServiceImpl implements AuthService {
 
         Optional<AppUser> userOpt = appUserRepository.findByEmailIgnoreCase(normalizedEmail);
         if (userOpt.isEmpty()) {
-            return new MessageResponseDTO(GENERIC_FORGOT_PASSWORD_MESSAGE);
+            throw new BusinessException(FORGOT_PASSWORD_EMAIL_NOT_REGISTERED_MESSAGE);
         }
 
         AppUser user = userOpt.get();
         if (!Boolean.TRUE.equals(user.getIsActive()) || user.getStatus() != UserStatusEnum.ACTIVE) {
-            return new MessageResponseDTO(GENERIC_FORGOT_PASSWORD_MESSAGE);
+            throw new BusinessException("Este usuário não está ativo na plataforma.");
         }
 
         passwordResetTokenRepository.invalidateExpiredActiveTokensByUserId(user.getId(), LocalDateTime.now(), user.getId());
@@ -248,7 +252,11 @@ public class AuthServiceImpl implements AuthService {
                 request
         );
 
-        return new MessageResponseDTO(GENERIC_FORGOT_PASSWORD_MESSAGE);
+        if (!emailResult.success()) {
+            throw new BusinessException(FORGOT_PASSWORD_EMAIL_FAILED_MESSAGE);
+        }
+
+        return new MessageResponseDTO(FORGOT_PASSWORD_EMAIL_SENT_MESSAGE);
     }
 
     @Override
@@ -303,7 +311,7 @@ public class AuthServiceImpl implements AuthService {
     @Override
     public AuthUserResponseDTO me(AuthenticatedUserPrincipal principal) {
         AppUser user = appUserRepository.findById(principal.id())
-                .orElseThrow(() -> new ResourceNotFoundException("Usuario nao encontrado"));
+                .orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado"));
         return toAuthUserDTO(user);
     }
 
@@ -312,7 +320,7 @@ public class AuthServiceImpl implements AuthService {
         validateAvatarFile(file);
 
         AppUser user = appUserRepository.findById(principal.id())
-                .orElseThrow(() -> new ResourceNotFoundException("Usuario nao encontrado"));
+                .orElseThrow(() -> new ResourceNotFoundException("Usário não encontrado"));
 
         String avatarDocumentId = documentService
                 .upload(file, DocumentOwnerTypeEnum.USER, user.getId(), "FOTO_PERFIL", principal.id())
@@ -371,7 +379,7 @@ public class AuthServiceImpl implements AuthService {
 
         String contentType = file.getContentType();
         if (contentType == null || !contentType.toLowerCase().startsWith("image/")) {
-            throw new BusinessException("A foto deve ser uma imagem valida");
+            throw new BusinessException("A foto deve ser uma imagem válida");
         }
     }
 
