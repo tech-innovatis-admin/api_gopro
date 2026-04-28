@@ -49,11 +49,16 @@ public interface ProjectCompanyRepository extends JpaRepository<ProjectCompany, 
                         c.phone,
                         c.address,
                         c.city,
-                        c.state
+                        c.state,
+                        rp.id,
+                        rp.fullName,
+                        rp.cpf,
+                        rp.email
                     )
                     from ProjectCompany pc
                     join pc.project p
                     join pc.company c
+                    left join c.responsiblePerson rp
                     where pc.isActive = true
                       and (:projectId is null or p.id = :projectId)
                     """,

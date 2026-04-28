@@ -68,6 +68,16 @@ class RbacControllerSecurityTest {
     }
 
     @Test
+    @WithMockUser(roles = "OWNER")
+    void owner_shouldAccessGeneralAdminAuditEndpoint() throws Exception {
+        when(auditLogService.list(any(), any(), any(), any(), any(), any(), any(), any(), any(), anyInt(), anyInt()))
+                .thenReturn(new PageResponseDTO<>(List.of(), 0, 20, 0, 0, true, true));
+
+        mockMvc.perform(get("/admin/audit"))
+                .andExpect(status().isOk());
+    }
+
+    @Test
     @WithMockUser(roles = "ADMIN")
     void admin_shouldAccessGeneralAdminAuditEndpoint() throws Exception {
         when(auditLogService.list(any(), any(), any(), any(), any(), any(), any(), any(), any(), anyInt(), anyInt()))
@@ -143,6 +153,16 @@ class RbacControllerSecurityTest {
     }
 
     @Test
+    @WithMockUser(roles = "OWNER")
+    void owner_shouldAccessAllowedRegistrationsAdminEndpoint() throws Exception {
+        when(allowedRegistrationService.listInvites(any(), anyInt(), anyInt()))
+                .thenReturn(new PageResponseDTO<>(List.of(), 0, 20, 0, 0, true, true));
+
+        mockMvc.perform(get("/admin/allowed-registrations"))
+                .andExpect(status().isOk());
+    }
+
+    @Test
     @WithMockUser(roles = "ADMIN")
     void admin_shouldAccessAllowedRegistrationsAdminEndpoint() throws Exception {
         when(allowedRegistrationService.listInvites(any(), anyInt(), anyInt()))
@@ -160,8 +180,9 @@ class RbacControllerSecurityTest {
             http
                     .csrf(csrf -> csrf.disable())
                     .authorizeHttpRequests(auth -> auth
-                            .requestMatchers("/admin/audit/**").hasAnyRole("SUPERADMIN", "ADMIN")
-                            .requestMatchers("/audit-log/**").hasAnyRole("SUPERADMIN", "ADMIN", "ANALISTA")
+                            .requestMatchers("/admin/audit/**").hasAnyRole("OWNER", "SUPERADMIN", "ADMIN")
+                            .requestMatchers("/audit-log/**").hasAnyRole("OWNER", "SUPERADMIN", "ADMIN", "ANALISTA")
+                            .requestMatchers("/admin/allowed-registrations/**").hasAnyRole("OWNER", "SUPERADMIN", "ADMIN")
                             .requestMatchers(HttpMethod.GET, "/**").authenticated()
                             .anyRequest().authenticated()
                     )
@@ -173,6 +194,7 @@ class RbacControllerSecurityTest {
         UserDetailsService userDetailsService() {
             PasswordEncoder encoder = PasswordEncoderFactories.createDelegatingPasswordEncoder();
             return new InMemoryUserDetailsManager(
+                    User.withUsername("owner").password(encoder.encode("123")).roles("OWNER").build(),
                     User.withUsername("admin").password(encoder.encode("123")).roles("ADMIN").build(),
                     User.withUsername("superadmin").password(encoder.encode("123")).roles("SUPERADMIN").build(),
                     User.withUsername("analista").password(encoder.encode("123")).roles("ANALISTA").build(),

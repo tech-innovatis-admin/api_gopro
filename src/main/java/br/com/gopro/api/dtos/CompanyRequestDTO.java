@@ -11,5 +11,6 @@ public record CompanyRequestDTO(
         @NotBlank(message = "Endereco e obrigatorio") String address,
         @NotBlank(message = "Cidade e obrigatoria") String city,
         @NotBlank(message = "Estado e obrigatorio") String state,
+        Long responsiblePersonId,
         Long createdBy
 ) {}

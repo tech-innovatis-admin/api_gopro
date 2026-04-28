@@ -28,6 +28,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -35,6 +36,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -117,6 +119,7 @@ class ProjectServiceImplTest {
 
         when(partnerRepository.findById(1L)).thenReturn(Optional.of(activePartner));
         when(publicAgencyRepository.findById(2L)).thenReturn(Optional.of(activeAgency));
+        when(projectRepository.findRecentCreatedProjects(any(), any())).thenReturn(List.of());
         when(projectMapper.toEntity(dto)).thenReturn(mappedProject);
         when(projectRepository.findCodesByPrefix("PROJIF/PI-2026")).thenReturn(List.of());
         when(projectRepository.saveAndFlush(any(Project.class))).thenAnswer(invocation -> {
@@ -151,6 +154,8 @@ class ProjectServiceImplTest {
                 BigDecimal.ZERO,
                 BigDecimal.ZERO,
                 BigDecimal.ZERO,
+                BigDecimal.ZERO,
+                BigDecimal.ZERO,
                 null,
                 null,
                 99L,
@@ -162,7 +167,117 @@ class ProjectServiceImplTest {
         ArgumentCaptor<Project> projectCaptor = ArgumentCaptor.forClass(Project.class);
         verify(projectRepository).saveAndFlush(projectCaptor.capture());
         assertThat(projectCaptor.getValue().getExecutedByInnovatis()).isTrue();
+        assertThat(projectCaptor.getValue().getCreatedBy()).isEqualTo(99L);
         assertThat(result.executedByInnovatis()).isTrue();
+    }
+
+    @Test
+    void createProject_shouldReturnRecentEquivalentProject_withoutCreatingDuplicate() {
+        ProjectRequestDTO dto = new ProjectRequestDTO(
+                "Contrato teste",
+                null,
+                ProjectStatusEnum.PRE_PROJETO,
+                "Tecnologia",
+                "Objeto teste",
+                1L,
+                null,
+                2L,
+                null,
+                null,
+                ProjectGovIfEnum.IF,
+                ProjectTypeEnum.PROJETO,
+                new BigDecimal("1000.00"),
+                LocalDate.of(2026, 3, 1),
+                LocalDate.of(2026, 12, 31),
+                null,
+                null,
+                "Teresina",
+                "PI",
+                "Teresina - PI",
+                true,
+                99L
+        );
+
+        Partner activePartner = new Partner();
+        activePartner.setId(1L);
+        activePartner.setIsActive(true);
+
+        PublicAgency activeAgency = new PublicAgency();
+        activeAgency.setId(2L);
+        activeAgency.setIsActive(true);
+
+        Project existingProject = new Project();
+        existingProject.setId(22L);
+        existingProject.setName("Contrato teste");
+        existingProject.setProjectStatus(ProjectStatusEnum.PRE_PROJETO);
+        existingProject.setAreaSegmento("Tecnologia");
+        existingProject.setObject("Objeto teste");
+        existingProject.setProjectGovIf(ProjectGovIfEnum.IF);
+        existingProject.setProjectType(ProjectTypeEnum.PROJETO);
+        existingProject.setContractValue(new BigDecimal("1000.00"));
+        existingProject.setStartDate(LocalDate.of(2026, 3, 1));
+        existingProject.setEndDate(LocalDate.of(2026, 12, 31));
+        existingProject.setCity("Teresina");
+        existingProject.setState("PI");
+        existingProject.setExecutionLocation("Teresina - PI");
+        existingProject.setExecutedByInnovatis(true);
+        existingProject.setCreatedBy(99L);
+        existingProject.setCreatedAt(LocalDateTime.now());
+        existingProject.setIsActive(true);
+
+        Partner primaryPartner = new Partner();
+        primaryPartner.setId(1L);
+        existingProject.setPrimaryPartner(primaryPartner);
+
+        PublicAgency primaryClient = new PublicAgency();
+        primaryClient.setId(2L);
+        existingProject.setPrimaryClient(primaryClient);
+
+        ProjectResponseDTO existingResponse = new ProjectResponseDTO(
+                22L,
+                "Contrato teste",
+                "PROJIF/PI-20260001",
+                ProjectStatusEnum.PRE_PROJETO,
+                "Tecnologia",
+                "Objeto teste",
+                1L,
+                null,
+                2L,
+                null,
+                null,
+                ProjectGovIfEnum.IF,
+                ProjectTypeEnum.PROJETO,
+                new BigDecimal("1000.00"),
+                LocalDate.of(2026, 3, 1),
+                LocalDate.of(2026, 12, 31),
+                null,
+                null,
+                "Teresina",
+                "PI",
+                "Teresina - PI",
+                true,
+                true,
+                BigDecimal.ZERO,
+                BigDecimal.ZERO,
+                BigDecimal.ZERO,
+                BigDecimal.ZERO,
+                BigDecimal.ZERO,
+                LocalDateTime.now(),
+                LocalDateTime.now(),
+                99L,
+                null
+        );
+
+        when(partnerRepository.findById(1L)).thenReturn(Optional.of(activePartner));
+        when(publicAgencyRepository.findById(2L)).thenReturn(Optional.of(activeAgency));
+        when(projectRepository.findRecentCreatedProjects(any(), any())).thenReturn(List.of(existingProject));
+        when(projectMapper.toDTO(existingProject)).thenReturn(existingResponse);
+
+        ProjectResponseDTO result = service.createProject(dto);
+
+        assertThat(result.id()).isEqualTo(22L);
+        verify(projectRepository, never()).saveAndFlush(any(Project.class));
+        verify(projectMapper, never()).toEntity(dto);
     }
 
     @Test

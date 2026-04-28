@@ -47,4 +47,6 @@ public interface AppUserRepository extends JpaRepository<AppUser, Long>, JpaSpec
             @Param("status") UserStatusEnum status,
             @Param("roles") Collection<UserRoleEnum> roles
     );
+
+    boolean existsByRoleInAndStatusAndIsActive(Collection<UserRoleEnum> roles, UserStatusEnum status, Boolean isActive);
 }

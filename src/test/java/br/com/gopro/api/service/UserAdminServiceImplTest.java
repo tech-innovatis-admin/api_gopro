@@ -67,6 +67,21 @@ class UserAdminServiceImplTest {
     }
 
     @Test
+    void updateUser_shouldAllowOwnerToUpdateOtherUsers() {
+        AuthenticatedUserPrincipal owner = new AuthenticatedUserPrincipal(1L, "owner@empresa.com", UserRoleEnum.OWNER);
+        AppUser target = user(10L, UserRoleEnum.ANALISTA, UserStatusEnum.ACTIVE);
+        when(appUserRepository.findById(10L)).thenReturn(Optional.of(target));
+        when(appUserRepository.save(any(AppUser.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        AdminUserUpdateRequestDTO dto = new AdminUserUpdateRequestDTO(UserRoleEnum.ADMIN, UserStatusEnum.DISABLED);
+
+        var response = service.updateUser(10L, dto, owner, request);
+
+        assertThat(response.role()).isEqualTo(UserRoleEnum.ADMIN);
+        assertThat(response.status()).isEqualTo(UserStatusEnum.DISABLED);
+    }
+
+    @Test
     void updateUser_shouldAllowSuperadminToUpdateRoleAndStatus() {
         AuthenticatedUserPrincipal superadmin = new AuthenticatedUserPrincipal(1L, "root@empresa.com", UserRoleEnum.SUPERADMIN);
         AppUser target = user(10L, UserRoleEnum.ANALISTA, UserStatusEnum.ACTIVE);
@@ -88,6 +103,19 @@ class UserAdminServiceImplTest {
         assertThat(event.getResumo()).isNull();
         assertThat(event.getDescricao()).isNull();
         assertThat(event.getDetalhesTecnicos()).isEqualTo(java.util.Map.of("auditAction", AuditActions.USER_UPDATED));
+    }
+
+    @Test
+    void updateUser_shouldBlockAdminFromUpdatingOwner() {
+        AuthenticatedUserPrincipal admin = new AuthenticatedUserPrincipal(1L, "admin@empresa.com", UserRoleEnum.ADMIN);
+        AppUser target = user(10L, UserRoleEnum.OWNER, UserStatusEnum.ACTIVE);
+        when(appUserRepository.findById(10L)).thenReturn(Optional.of(target));
+
+        AdminUserUpdateRequestDTO dto = new AdminUserUpdateRequestDTO(UserRoleEnum.ADMIN, UserStatusEnum.DISABLED);
+
+        assertThatThrownBy(() -> service.updateUser(10L, dto, admin, request))
+                .isInstanceOf(AccessDeniedException.class)
+                .hasMessageContaining("Acesso negado");
     }
 
     @Test

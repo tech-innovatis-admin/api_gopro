@@ -19,7 +19,7 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/admin/allowed-registrations")
 @RequiredArgsConstructor
 @Tag(name = "Allowed Registrations", description = "Whitelist de cadastro via convite")
-@PreAuthorize("hasAnyRole('SUPERADMIN','ADMIN')")
+@PreAuthorize("hasAnyRole('OWNER','SUPERADMIN','ADMIN')")
 public class AllowedRegistrationAdminController {
 
     private final AllowedRegistrationService allowedRegistrationService;

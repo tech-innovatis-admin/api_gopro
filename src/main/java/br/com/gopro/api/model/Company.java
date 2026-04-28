@@ -44,6 +44,10 @@ public class Company {
     @Column(name = "state", length = 50, nullable = false)
     private String state;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "responsible_person_id")
+    private People responsiblePerson;
+
     @Column(name = "is_active", nullable = false)
     private Boolean isActive;
 

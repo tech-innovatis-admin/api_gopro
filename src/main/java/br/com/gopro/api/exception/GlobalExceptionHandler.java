@@ -9,11 +9,13 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.validation.BindException;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import java.time.LocalDateTime;
+import java.time.format.DateTimeParseException;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -51,6 +53,7 @@ public class GlobalExceptionHandler {
             "value too long for type character varying\\((\\d+)\\)",
             Pattern.CASE_INSENSITIVE
     );
+    private static final Pattern JSON_REFERENCE_FIELD_PATTERN = Pattern.compile("\\[\"([^\"]+)\"\\]");
     private static final Map<String, String> FIELD_LABELS = Map.ofEntries(
             Map.entry("email", "E-mail"),
             Map.entry("cnpj", "CNPJ"),
@@ -66,6 +69,7 @@ public class GlobalExceptionHandler {
             Map.entry("city", "Cidade"),
             Map.entry("state", "UF"),
             Map.entry("contact_person", "Responsavel de contato"),
+            Map.entry("responsible_person_id", "Pessoa responsavel"),
             Map.entry("project_id", "Contrato"),
             Map.entry("partner_id", "Parceiro"),
             Map.entry("primary_partner_id", "Parceiro primario"),
@@ -78,6 +82,7 @@ public class GlobalExceptionHandler {
             Map.entry("goal_id", "Meta"),
             Map.entry("stage_id", "Etapa"),
             Map.entry("phase_id", "Fase"),
+            Map.entry("expectedmonth", "Mes previsto"),
             Map.entry("category_id", "Rubrica"),
             Map.entry("budget_item_id", "Subitem"),
             Map.entry("income_id", "Recebimento"),
@@ -174,6 +179,26 @@ public class GlobalExceptionHandler {
 
         return ResponseEntity.badRequest()
                 .body(buildError(HttpStatus.BAD_REQUEST, "Erro de validacao nos filtros", request, fieldErrors));
+    }
+
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<ErrorResponse> handleHttpMessageNotReadable(
+            HttpMessageNotReadableException exception,
+            HttpServletRequest request
+    ) {
+        if (isInvalidDatePayload(exception)) {
+            String fieldName = extractJsonReferenceField(exception.getMessage());
+            String message = resolveInvalidDateMessage(fieldName);
+            List<ErrorResponse.FieldError> fieldErrors = fieldName == null
+                    ? null
+                    : List.of(new ErrorResponse.FieldError(fieldName, message));
+
+            return ResponseEntity.badRequest()
+                    .body(buildError(HttpStatus.BAD_REQUEST, message, request, fieldErrors));
+        }
+
+        return ResponseEntity.badRequest()
+                .body(buildError(HttpStatus.BAD_REQUEST, "Corpo da requisicao invalido", request, null));
     }
 
     @ExceptionHandler(DataIntegrityViolationException.class)
@@ -391,6 +416,34 @@ public class GlobalExceptionHandler {
                 "Um dos campos de texto excedeu o limite de " + matcher.group(1) + " caracteres",
                 null
         );
+    }
+
+    private boolean isInvalidDatePayload(HttpMessageNotReadableException exception) {
+        Throwable rootCause = exception.getMostSpecificCause();
+        if (rootCause instanceof DateTimeParseException) {
+            return true;
+        }
+
+        String message = exception.getMessage();
+        return message != null && message.contains("LocalDate");
+    }
+
+    private String extractJsonReferenceField(String rawMessage) {
+        if (rawMessage == null || rawMessage.isBlank()) {
+            return null;
+        }
+
+        Matcher matcher = JSON_REFERENCE_FIELD_PATTERN.matcher(rawMessage);
+        if (!matcher.find()) {
+            return null;
+        }
+
+        return matcher.group(1);
+    }
+
+    private String resolveInvalidDateMessage(String fieldName) {
+        String label = fieldName == null ? "Data" : resolveFieldLabel(fieldName);
+        return label + " esta em formato invalido. Use o padrao YYYY-MM-DD.";
     }
 
     private List<ErrorResponse.FieldError> buildFieldErrors(

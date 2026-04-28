@@ -12,6 +12,7 @@ public record CompanyResponseDTO(
         String address,
         String city,
         String state,
+        CompanyResponsiblePersonDTO responsiblePerson,
         Boolean isActive,
         LocalDateTime createdAt,
         LocalDateTime updatedAt,

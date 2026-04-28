@@ -1,5 +1,7 @@
 package br.com.gopro.api.model;
 
+import br.com.gopro.api.enums.ExpensePaymentStatusEnum;
+import br.com.gopro.api.enums.ExpensePaidByEnum;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -46,6 +48,14 @@ public class Expense {
 
     @Column(name = "amount", nullable = false, precision = 15, scale = 2)
     private BigDecimal amount;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "payment_status", nullable = false, length = 30)
+    private ExpensePaymentStatusEnum paymentStatus;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "paid_by", nullable = false, length = 30)
+    private ExpensePaidByEnum paidBy;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "person_id", foreignKey = @ForeignKey(name = "fk_expense_person_id"))

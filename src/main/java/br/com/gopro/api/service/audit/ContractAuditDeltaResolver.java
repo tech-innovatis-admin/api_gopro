@@ -35,7 +35,7 @@ public class ContractAuditDeltaResolver {
     );
 
     private static final Map<String, Set<String>> RESOURCE_IGNORED_FIELDS = Map.ofEntries(
-            entry("projects", Set.of("totalReceived", "totalExpenses", "saldo")),
+            entry("projects", Set.of("totalReceived", "totalExpenses", "totalReserved", "saldoReal", "saldo")),
             entry("documents", Set.of("bucket", "s3Key", "sha256")),
             entry("expenses", Set.of("project"))
     );
@@ -150,6 +150,8 @@ public class ContractAuditDeltaResolver {
                     entry("expenseDate", "Data da despesa"),
                     entry("quantity", "Quantidade"),
                     entry("amount", "Valor da despesa"),
+                    entry("paymentStatus", "Status do pagamento"),
+                    entry("paidBy", "Realizado por"),
                     entry("person", "Pessoa vinculada"),
                     entry("organization", "Empresa vinculada"),
                     entry("description", "Descricao da despesa"),

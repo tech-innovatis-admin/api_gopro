@@ -80,10 +80,10 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/auth/reset-password").permitAll()
                         .requestMatchers("/register/**").permitAll()
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                        .requestMatchers("/admin/allowed-registrations/**").hasAnyRole("SUPERADMIN", "ADMIN")
-                        .requestMatchers("/admin/audit/**").hasAnyRole("SUPERADMIN", "ADMIN")
-                        .requestMatchers("/audit-log/**").hasAnyRole("SUPERADMIN", "ADMIN", "ANALISTA")
-                        .requestMatchers("/admin/users/**").hasAnyRole("SUPERADMIN", "ADMIN")
+                        .requestMatchers("/admin/allowed-registrations/**").hasAnyRole("OWNER", "SUPERADMIN", "ADMIN")
+                        .requestMatchers("/admin/audit/**").hasAnyRole("OWNER", "SUPERADMIN", "ADMIN")
+                        .requestMatchers("/audit-log/**").hasAnyRole("OWNER", "SUPERADMIN", "ADMIN", "ANALISTA")
+                        .requestMatchers("/admin/users/**").hasAnyRole("OWNER", "SUPERADMIN", "ADMIN")
                         .requestMatchers(
                                 HttpMethod.POST,
                                 "/disbursement-schedules/**",
@@ -98,7 +98,7 @@ public class SecurityConfig {
                                 "/documents/**",
                                 "/incomes/**",
                                 "/expenses/**"
-                        ).hasAnyRole("SUPERADMIN", "ADMIN", "ANALISTA")
+                        ).hasAnyRole("OWNER", "SUPERADMIN", "ADMIN", "ANALISTA")
                         .requestMatchers(
                                 HttpMethod.PUT,
                                 "/disbursement-schedules/**",
@@ -112,7 +112,7 @@ public class SecurityConfig {
                                 "/project-companies/**",
                                 "/incomes/**",
                                 "/expenses/**"
-                        ).hasAnyRole("SUPERADMIN", "ADMIN", "ANALISTA")
+                        ).hasAnyRole("OWNER", "SUPERADMIN", "ADMIN", "ANALISTA")
                         .requestMatchers(
                                 HttpMethod.PATCH,
                                 "/disbursement-schedules/**",
@@ -126,7 +126,7 @@ public class SecurityConfig {
                                 "/project-companies/**",
                                 "/incomes/**",
                                 "/expenses/**"
-                        ).hasAnyRole("SUPERADMIN", "ADMIN", "ANALISTA")
+                        ).hasAnyRole("OWNER", "SUPERADMIN", "ADMIN", "ANALISTA")
                         .requestMatchers(
                                 HttpMethod.DELETE,
                                 "/disbursement-schedules/**",
@@ -141,7 +141,7 @@ public class SecurityConfig {
                                 "/documents/**",
                                 "/incomes/**",
                                 "/expenses/**"
-                        ).hasAnyRole("SUPERADMIN", "ADMIN", "ANALISTA")
+                        ).hasAnyRole("OWNER", "SUPERADMIN", "ADMIN", "ANALISTA")
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)

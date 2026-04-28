@@ -24,6 +24,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -320,7 +321,11 @@ public class AuthServiceImpl implements AuthService {
         validateAvatarFile(file);
 
         AppUser user = appUserRepository.findById(principal.id())
-                .orElseThrow(() -> new ResourceNotFoundException("Usário não encontrado"));
+                .orElseThrow(() -> new ResourceNotFoundException("Usuario nao encontrado"));
+        if (user.getRole() != null && user.getRole().isProtectedAccount()) {
+            throw new AccessDeniedException("Acesso negado");
+        }
+
 
         String avatarDocumentId = documentService
                 .upload(file, DocumentOwnerTypeEnum.USER, user.getId(), "FOTO_PERFIL", principal.id())

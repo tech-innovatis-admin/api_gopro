@@ -9,5 +9,6 @@ public record CompanyUpdateDTO(
         String address,
         String city,
         String state,
+        Long responsiblePersonId,
         Long updatedBy
 ) {}

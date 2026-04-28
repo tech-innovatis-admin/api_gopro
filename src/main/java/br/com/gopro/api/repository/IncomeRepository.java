@@ -24,6 +24,7 @@ public interface IncomeRepository extends JpaRepository<Income, Long> {
     select coalesce(sum(i.amount), 0)
     from Income i
     where i.project.id = :projectId
+      and i.isActive = true
 """)
     BigDecimal sumIncomeByProjectId(@Param("projectId") Long projectId);
 }

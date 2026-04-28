@@ -47,6 +47,24 @@ Configuracoes:
 ## Observacoes
 - Erros sao padronizados via `GlobalExceptionHandler`.
 
+## Empresas
+
+Os endpoints de empresas e a listagem detalhada de empresas por projeto agora suportam um responsavel opcional:
+
+- `POST /companies`
+- `PUT /companies/{id}`
+  - aceitam `responsiblePersonId` opcional.
+- `GET /companies`
+- `GET /companies/{id}`
+  - retornam `responsiblePerson` com `id`, `fullName`, `cpf` e `email`.
+- `GET /project-companies/detailed`
+  - retorna os dados resumidos da pessoa responsavel da empresa vinculada ao projeto.
+
+Regras aplicadas nesta etapa:
+
+- o CNPJ e validado antes da persistencia e retorna erro claro quando a empresa ja existe;
+- a pessoa responsavel deve existir e estar ativa.
+
 ## Autenticacao, RBAC e Convites
 
 ### Endpoints publicos

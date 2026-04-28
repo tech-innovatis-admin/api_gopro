@@ -3,6 +3,7 @@ package br.com.gopro.api.mapper;
 import br.com.gopro.api.dtos.ExpenseRequestDTO;
 import br.com.gopro.api.dtos.ExpenseResponseDTO;
 import br.com.gopro.api.dtos.ExpenseUpdateDTO;
+import br.com.gopro.api.enums.ExpensePaidByEnum;
 import br.com.gopro.api.model.Expense;
 import org.springframework.stereotype.Component;
 
@@ -14,6 +15,8 @@ public class ExpenseMapper {
         expense.setExpenseDate(dto.expenseDate());
         expense.setQuantity(dto.quantity());
         expense.setAmount(dto.amount());
+        expense.setPaymentStatus(dto.paymentStatus());
+        expense.setPaidBy(dto.paidBy() != null ? dto.paidBy() : ExpensePaidByEnum.INNOVATIS);
         expense.setDescription(dto.description());
         expense.setInvoiceNumber(dto.invoiceNumber());
         expense.setInvoiceDate(dto.invoiceDate());
@@ -31,6 +34,8 @@ public class ExpenseMapper {
                 expense.getExpenseDate(),
                 expense.getQuantity(),
                 expense.getAmount(),
+                expense.getPaymentStatus(),
+                expense.getPaidBy() != null ? expense.getPaidBy() : ExpensePaidByEnum.INNOVATIS,
                 expense.getPerson() != null ? expense.getPerson().getId() : null,
                 expense.getOrganization() != null ? expense.getOrganization().getId() : null,
                 expense.getDescription(),
@@ -54,6 +59,12 @@ public class ExpenseMapper {
         }
         if (dto.amount() != null) {
             expense.setAmount(dto.amount());
+        }
+        if (dto.paymentStatus() != null) {
+            expense.setPaymentStatus(dto.paymentStatus());
+        }
+        if (dto.paidBy() != null) {
+            expense.setPaidBy(dto.paidBy());
         }
         if (dto.description() != null) {
             expense.setDescription(dto.description());

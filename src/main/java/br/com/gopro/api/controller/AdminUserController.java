@@ -22,7 +22,7 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/admin/users")
 @RequiredArgsConstructor
 @Tag(name = "Admin Users", description = "Gestao administrativa de usuarios")
-@PreAuthorize("hasAnyRole('SUPERADMIN','ADMIN')")
+@PreAuthorize("hasAnyRole('OWNER','SUPERADMIN','ADMIN')")
 public class AdminUserController {
 
     private final UserAdminService userAdminService;

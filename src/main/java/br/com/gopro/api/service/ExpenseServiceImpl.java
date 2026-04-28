@@ -21,6 +21,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
@@ -37,14 +38,21 @@ public class ExpenseServiceImpl implements ExpenseService {
     private final OrganizationRepository organizationRepository;
     private final DocumentRepository documentRepository;
     private final ProjectRepository projectRepository;
-    private final EmailService emailService;
+    private final ProjectFinancialSummaryService projectFinancialSummaryService;
 
     @Override
+    @Transactional
     public ExpenseResponseDTO createExpense(ExpenseRequestDTO dto) {
         Expense expense = expenseMapper.toEntity(dto);
         applyReferencesOnCreate(expense, dto);
         expense.setIsActive(true);
         Expense saved = expenseRepository.save(expense);
+        projectFinancialSummaryService.refreshExpenseAggregates(
+                saved.getProject() != null ? saved.getProject().getId() : null,
+                null,
+                saved.getBudgetItem() != null ? saved.getBudgetItem().getId() : null,
+                null
+        );
         return expenseMapper.toDTO(saved);
     }
 
@@ -87,24 +95,37 @@ public class ExpenseServiceImpl implements ExpenseService {
         if (!Boolean.TRUE.equals(expense.getIsActive())) {
             throw new BusinessException("Nao e possivel atualizar uma despesa inativa");
         }
+        Long previousProjectId = expense.getProject() != null ? expense.getProject().getId() : null;
+        Long previousBudgetItemId = expense.getBudgetItem() != null ? expense.getBudgetItem().getId() : null;
         expenseMapper.updateEntityFromDTO(dto, expense);
         applyReferencesOnUpdate(expense, dto);
         Expense updated = expenseRepository.save(expense);
+        projectFinancialSummaryService.refreshExpenseAggregates(
+                updated.getProject() != null ? updated.getProject().getId() : null,
+                previousProjectId,
+                updated.getBudgetItem() != null ? updated.getBudgetItem().getId() : null,
+                previousBudgetItemId
+        );
         return expenseMapper.toDTO(updated);
     }
 
     @Override
+    @Transactional
     public void deleteExpenseById(Long id) {
         Expense expense = expenseRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Despesa nao encontrada"));
         if (!Boolean.TRUE.equals(expense.getIsActive())) {
             throw new BusinessException("Despesa ja esta inativa");
         }
+        Long projectId = expense.getProject() != null ? expense.getProject().getId() : null;
+        Long budgetItemId = expense.getBudgetItem() != null ? expense.getBudgetItem().getId() : null;
         expense.setIsActive(false);
         expenseRepository.save(expense);
+        projectFinancialSummaryService.refreshExpenseAggregates(projectId, null, budgetItemId, null);
     }
 
     @Override
+    @Transactional
     public ExpenseResponseDTO restoreExpenseById(Long id) {
         Expense expense = expenseRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Despesa nao encontrada"));
@@ -113,6 +134,12 @@ public class ExpenseServiceImpl implements ExpenseService {
         }
         expense.setIsActive(true);
         Expense restored = expenseRepository.save(expense);
+        projectFinancialSummaryService.refreshExpenseAggregates(
+                restored.getProject() != null ? restored.getProject().getId() : null,
+                null,
+                restored.getBudgetItem() != null ? restored.getBudgetItem().getId() : null,
+                null
+        );
         return expenseMapper.toDTO(restored);
     }
 
