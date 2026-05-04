@@ -8,6 +8,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.mock.http.MockHttpInputMessage;
 import org.springframework.mock.web.MockHttpServletRequest;
+import org.springframework.security.access.AccessDeniedException;
 
 import java.nio.charset.StandardCharsets;
 
@@ -32,7 +33,7 @@ class GlobalExceptionHandlerTest {
         assertThat(response.getBody()).isNotNull();
         assertThat(response.getBody().message()).isEqualTo("E-mail e obrigatorio.");
         assertThat(response.getBody().fieldErrors())
-                .containsExactly(new ErrorResponse.FieldError("email", "E-mail e obrigatorio."));
+                .containsEntry("email", "E-mail e obrigatorio.");
     }
 
     @Test
@@ -53,7 +54,7 @@ class GlobalExceptionHandlerTest {
         assertThat(response.getBody()).isNotNull();
         assertThat(response.getBody().message()).isEqualTo("Ja existe um registro com este CNPJ.");
         assertThat(response.getBody().fieldErrors())
-                .containsExactly(new ErrorResponse.FieldError("cnpj", "Ja existe um registro com este CNPJ."));
+                .containsEntry("cnpj", "Ja existe um registro com este CNPJ.");
     }
 
     @Test
@@ -89,7 +90,46 @@ class GlobalExceptionHandlerTest {
         assertThat(response.getBody()).isNotNull();
         assertThat(response.getBody().message()).isEqualTo("Mes previsto esta em formato invalido. Use o padrao YYYY-MM-DD.");
         assertThat(response.getBody().fieldErrors())
-                .containsExactly(new ErrorResponse.FieldError("expectedMonth", "Mes previsto esta em formato invalido. Use o padrao YYYY-MM-DD."));
+                .containsEntry("expectedMonth", "Mes previsto esta em formato invalido. Use o padrao YYYY-MM-DD.");
+    }
+
+    @Test
+    void handleUnauthorized_shouldReturnGenericAuthenticationMessage() {
+        ResponseEntity<ErrorResponse> response = handler.handleUnauthorized(
+                new UnauthorizedException("token expired"),
+                request()
+        );
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+        assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody().message()).isEqualTo("Nao foi possivel autenticar sua sessao.");
+        assertThat(response.getBody().fieldErrors()).isNull();
+    }
+
+    @Test
+    void handleAccessDenied_shouldReturnStandardPermissionMessage() {
+        ResponseEntity<ErrorResponse> response = handler.handleAccessDenied(
+                new AccessDeniedException("forbidden"),
+                request()
+        );
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+        assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody().message()).isEqualTo("Voce nao tem permissao para executar esta acao.");
+        assertThat(response.getBody().fieldErrors()).isNull();
+    }
+
+    @Test
+    void handleNotFound_shouldReturnSanitizedMessage() {
+        ResponseEntity<ErrorResponse> response = handler.handleNotFound(
+                new ResourceNotFoundException("Contrato nao encontrado."),
+                request()
+        );
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+        assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody().message()).isEqualTo("Contrato nao encontrado.");
+        assertThat(response.getBody().fieldErrors()).isNull();
     }
 
     private HttpServletRequest request() {
