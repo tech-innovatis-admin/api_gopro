@@ -1,15 +1,10 @@
 package br.com.gopro.api.exception;
 
-import java.time.LocalDateTime;
-import java.util.List;
+import java.util.Map;
 
 public record ErrorResponse(
-        LocalDateTime timestamp,
         int status,
-        String error,
         String message,
-        String path,
-        List<FieldError> fieldErrors
+        Map<String, String> fieldErrors
 ) {
-    public record FieldError(String field, String message) {}
 }

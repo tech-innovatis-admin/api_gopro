@@ -14,8 +14,8 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
-import java.time.LocalDateTime;
 import java.time.format.DateTimeParseException;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -25,6 +25,8 @@ import java.util.regex.Pattern;
 @RestControllerAdvice
 @Slf4j
 public class GlobalExceptionHandler {
+    private static final String VALIDATION_MESSAGE = "Existem campos invalidos no formulario.";
+    private static final String CONFLICT_MESSAGE = "Ja existe um registro com estas informacoes.";
     private static final Pattern NOT_NULL_COLUMN_PATTERN = Pattern.compile(
             "null value in column \"([^\"]+)\"(?: of relation \"([^\"]+)\")? violates not-null constraint",
             Pattern.CASE_INSENSITIVE
@@ -51,6 +53,10 @@ public class GlobalExceptionHandler {
     );
     private static final Pattern VARCHAR_LENGTH_PATTERN = Pattern.compile(
             "value too long for type character varying\\((\\d+)\\)",
+            Pattern.CASE_INSENSITIVE
+    );
+    private static final Pattern LENGTH_COLUMN_PATTERN = Pattern.compile(
+            "column \"([^\"]+)\"",
             Pattern.CASE_INSENSITIVE
     );
     private static final Pattern JSON_REFERENCE_FIELD_PATTERN = Pattern.compile("\\[\"([^\"]+)\"\\]");
@@ -101,13 +107,13 @@ public class GlobalExceptionHandler {
             HttpServletRequest request
     ) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                .body(buildError(HttpStatus.NOT_FOUND, exception.getMessage(), request, null));
+                .body(buildError(HttpStatus.NOT_FOUND, sanitizeNotFoundMessage(exception.getMessage()), null));
     }
 
     @ExceptionHandler(BusinessException.class)
     public ResponseEntity<ErrorResponse> handleBusiness(BusinessException exception, HttpServletRequest request) {
         return ResponseEntity.badRequest()
-                .body(buildError(HttpStatus.BAD_REQUEST, exception.getMessage(), request, null));
+                .body(buildError(HttpStatus.BAD_REQUEST, sanitizeBusinessMessage(exception.getMessage()), null));
     }
 
     @ExceptionHandler(UnauthorizedException.class)
@@ -116,7 +122,7 @@ public class GlobalExceptionHandler {
             HttpServletRequest request
     ) {
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                .body(buildError(HttpStatus.UNAUTHORIZED, exception.getMessage(), request, null));
+                .body(buildError(HttpStatus.UNAUTHORIZED, "Nao foi possivel autenticar sua sessao.", null));
     }
 
     @ExceptionHandler(AccessDeniedException.class)
@@ -125,7 +131,7 @@ public class GlobalExceptionHandler {
             HttpServletRequest request
     ) {
         return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                .body(buildError(HttpStatus.FORBIDDEN, "Acesso negado", request, null));
+                .body(buildError(HttpStatus.FORBIDDEN, "Voce nao tem permissao para executar esta acao.", null));
     }
 
     @ExceptionHandler(TooManyRequestsException.class)
@@ -134,7 +140,7 @@ public class GlobalExceptionHandler {
             HttpServletRequest request
     ) {
         return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
-                .body(buildError(HttpStatus.TOO_MANY_REQUESTS, exception.getMessage(), request, null));
+                .body(buildError(HttpStatus.TOO_MANY_REQUESTS, exception.getMessage(), null));
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
@@ -142,26 +148,24 @@ public class GlobalExceptionHandler {
             MethodArgumentNotValidException exception,
             HttpServletRequest request
     ) {
-        List<ErrorResponse.FieldError> fieldErrors = exception.getBindingResult()
+        Map<String, String> fieldErrors = exception.getBindingResult()
                 .getFieldErrors()
                 .stream()
-                .map(fieldError -> new ErrorResponse.FieldError(fieldError.getField(), fieldError.getDefaultMessage()))
-                .toList();
+                .collect(LinkedHashMap::new, (map, fieldError) -> map.putIfAbsent(fieldError.getField(), fieldError.getDefaultMessage()), LinkedHashMap::putAll);
 
         return ResponseEntity.badRequest()
-                .body(buildError(HttpStatus.BAD_REQUEST, "Erro de validacao nos campos", request, fieldErrors));
+                .body(buildError(HttpStatus.BAD_REQUEST, VALIDATION_MESSAGE, fieldErrors));
     }
 
     @ExceptionHandler(BindException.class)
     public ResponseEntity<ErrorResponse> handleBindException(BindException exception, HttpServletRequest request) {
-        List<ErrorResponse.FieldError> fieldErrors = exception.getBindingResult()
+        Map<String, String> fieldErrors = exception.getBindingResult()
                 .getFieldErrors()
                 .stream()
-                .map(fieldError -> new ErrorResponse.FieldError(fieldError.getField(), fieldError.getDefaultMessage()))
-                .toList();
+                .collect(LinkedHashMap::new, (map, fieldError) -> map.putIfAbsent(fieldError.getField(), fieldError.getDefaultMessage()), LinkedHashMap::putAll);
 
         return ResponseEntity.badRequest()
-                .body(buildError(HttpStatus.BAD_REQUEST, "Erro de validacao nos filtros", request, fieldErrors));
+                .body(buildError(HttpStatus.BAD_REQUEST, VALIDATION_MESSAGE, fieldErrors));
     }
 
     @ExceptionHandler(ConstraintViolationException.class)
@@ -169,16 +173,16 @@ public class GlobalExceptionHandler {
             ConstraintViolationException exception,
             HttpServletRequest request
     ) {
-        List<ErrorResponse.FieldError> fieldErrors = exception.getConstraintViolations()
+        Map<String, String> fieldErrors = exception.getConstraintViolations()
                 .stream()
-                .map(violation -> new ErrorResponse.FieldError(
-                        violation.getPropertyPath().toString(),
-                        violation.getMessage()
-                ))
-                .toList();
+                .collect(
+                        LinkedHashMap::new,
+                        (map, violation) -> map.putIfAbsent(violation.getPropertyPath().toString(), violation.getMessage()),
+                        LinkedHashMap::putAll
+                );
 
         return ResponseEntity.badRequest()
-                .body(buildError(HttpStatus.BAD_REQUEST, "Erro de validacao nos filtros", request, fieldErrors));
+                .body(buildError(HttpStatus.BAD_REQUEST, VALIDATION_MESSAGE, fieldErrors));
     }
 
     @ExceptionHandler(HttpMessageNotReadableException.class)
@@ -189,16 +193,16 @@ public class GlobalExceptionHandler {
         if (isInvalidDatePayload(exception)) {
             String fieldName = extractJsonReferenceField(exception.getMessage());
             String message = resolveInvalidDateMessage(fieldName);
-            List<ErrorResponse.FieldError> fieldErrors = fieldName == null
+            Map<String, String> fieldErrors = fieldName == null
                     ? null
-                    : List.of(new ErrorResponse.FieldError(fieldName, message));
+                    : Map.of(fieldName, message);
 
             return ResponseEntity.badRequest()
-                    .body(buildError(HttpStatus.BAD_REQUEST, message, request, fieldErrors));
+                    .body(buildError(HttpStatus.BAD_REQUEST, message, fieldErrors));
         }
 
         return ResponseEntity.badRequest()
-                .body(buildError(HttpStatus.BAD_REQUEST, "Corpo da requisicao invalido", request, null));
+                .body(buildError(HttpStatus.BAD_REQUEST, "Corpo da requisicao invalido.", null));
     }
 
     @ExceptionHandler(DataIntegrityViolationException.class)
@@ -209,7 +213,7 @@ public class GlobalExceptionHandler {
         ParsedDataIntegrityError parsed = parseDataIntegrityViolation(exception);
 
         return ResponseEntity.status(parsed.status())
-                .body(buildError(parsed.status(), parsed.message(), request, parsed.fieldErrors()));
+                .body(buildError(parsed.status(), parsed.message(), parsed.fieldErrors()));
     }
 
     @ExceptionHandler(Exception.class)
@@ -226,7 +230,7 @@ public class GlobalExceptionHandler {
 
         log.error("unexpected_error path={} method={} message={}", request.getRequestURI(), request.getMethod(), exception.getMessage(), exception);
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(buildError(HttpStatus.INTERNAL_SERVER_ERROR, "Erro interno do servidor", request, null));
+                .body(buildError(HttpStatus.INTERNAL_SERVER_ERROR, "Erro interno do servidor", null));
     }
 
     private boolean isClientAbort(Throwable throwable) {
@@ -252,17 +256,27 @@ public class GlobalExceptionHandler {
     private ErrorResponse buildError(
             HttpStatus status,
             String message,
-            HttpServletRequest request,
-            List<ErrorResponse.FieldError> fieldErrors
+            Map<String, String> fieldErrors
     ) {
         return new ErrorResponse(
-                LocalDateTime.now(),
                 status.value(),
-                status.getReasonPhrase(),
                 message,
-                request.getRequestURI(),
                 fieldErrors
         );
+    }
+
+    private String sanitizeNotFoundMessage(String message) {
+        if (message == null || message.isBlank()) {
+            return "Recurso nao encontrado.";
+        }
+        return message;
+    }
+
+    private String sanitizeBusinessMessage(String message) {
+        if (message == null || message.isBlank()) {
+            return "Nao foi possivel processar a solicitacao.";
+        }
+        return message;
     }
 
     private ParsedDataIntegrityError parseDataIntegrityViolation(DataIntegrityViolationException exception) {
@@ -294,7 +308,7 @@ public class GlobalExceptionHandler {
             return lengthViolation;
         }
 
-        return new ParsedDataIntegrityError(HttpStatus.CONFLICT, "Violacao de integridade de dados", null);
+        return new ParsedDataIntegrityError(HttpStatus.CONFLICT, CONFLICT_MESSAGE, null);
     }
 
     private ParsedDataIntegrityError mapKnownConstraint(String normalizedDetails) {
@@ -319,14 +333,14 @@ public class GlobalExceptionHandler {
             return new ParsedDataIntegrityError(
                     HttpStatus.CONFLICT,
                     "Pessoa informada nao encontrada",
-                    List.of(new ErrorResponse.FieldError("personId", "Pessoa informada nao encontrada."))
+                    Map.of("personId", "Pessoa informada nao encontrada.")
             );
         }
         if (normalizedDetails.contains("fk_project_people_project_id")) {
             return new ParsedDataIntegrityError(
                     HttpStatus.CONFLICT,
                     "Projeto informado nao encontrado",
-                    List.of(new ErrorResponse.FieldError("projectId", "Contrato informado nao encontrado."))
+                    Map.of("projectId", "Contrato informado nao encontrado.")
             );
         }
         return null;
@@ -341,9 +355,7 @@ public class GlobalExceptionHandler {
         String columnName = matcher.group(1);
         String fieldKey = normalizeFieldKey(columnName);
         String label = resolveFieldLabel(columnName);
-        List<ErrorResponse.FieldError> fieldErrors = List.of(
-                new ErrorResponse.FieldError(fieldKey, label + " e obrigatorio.")
-        );
+        Map<String, String> fieldErrors = Map.of(fieldKey, label + " e obrigatorio.");
 
         return new ParsedDataIntegrityError(
                 HttpStatus.CONFLICT,
@@ -360,21 +372,21 @@ public class GlobalExceptionHandler {
 
         Matcher keyMatcher = UNIQUE_KEY_DETAIL_PATTERN.matcher(rawDetails);
         if (keyMatcher.find()) {
-            List<ErrorResponse.FieldError> fieldErrors = buildFieldErrors(
+            Map<String, String> fieldErrors = buildFieldErrors(
                     keyMatcher.group(1),
                     columnName -> "Ja existe um registro com este " + resolveFieldLabelForSentence(columnName) + "."
             );
 
             return new ParsedDataIntegrityError(
                     HttpStatus.CONFLICT,
-                    summarizeFieldErrors(fieldErrors, "Ja existe um registro com os dados informados"),
+                    summarizeFieldErrors(fieldErrors, CONFLICT_MESSAGE),
                     fieldErrors
             );
         }
 
         return new ParsedDataIntegrityError(
                 HttpStatus.CONFLICT,
-                "Ja existe um registro com os dados informados",
+                CONFLICT_MESSAGE,
                 null
         );
     }
@@ -387,7 +399,7 @@ public class GlobalExceptionHandler {
 
         Matcher missingMatcher = FOREIGN_KEY_MISSING_DETAIL_PATTERN.matcher(rawDetails);
         if (missingMatcher.find()) {
-            List<ErrorResponse.FieldError> fieldErrors = buildFieldErrors(
+            Map<String, String> fieldErrors = buildFieldErrors(
                     missingMatcher.group(1),
                     columnName -> "Valor informado para " + resolveFieldLabelForSentence(columnName) + " nao foi encontrado."
             );
@@ -419,6 +431,23 @@ public class GlobalExceptionHandler {
         Matcher matcher = VARCHAR_LENGTH_PATTERN.matcher(rawDetails);
         if (!matcher.find()) {
             return null;
+        }
+
+        Matcher columnMatcher = LENGTH_COLUMN_PATTERN.matcher(rawDetails);
+        if (columnMatcher.find()) {
+            String columnName = columnMatcher.group(1);
+            String fieldKey = normalizeFieldKey(columnName);
+            String label = resolveFieldLabel(columnName);
+            Map<String, String> fieldErrors = Map.of(
+                    fieldKey,
+                    label + " excedeu o limite de " + matcher.group(1) + " caracteres."
+            );
+
+            return new ParsedDataIntegrityError(
+                    HttpStatus.CONFLICT,
+                    summarizeFieldErrors(fieldErrors, "Campo com tamanho invalido."),
+                    fieldErrors
+            );
         }
 
         return new ParsedDataIntegrityError(
@@ -456,28 +485,25 @@ public class GlobalExceptionHandler {
         return label + " esta em formato invalido. Use o padrao YYYY-MM-DD.";
     }
 
-    private List<ErrorResponse.FieldError> buildFieldErrors(
+    private Map<String, String> buildFieldErrors(
             String rawFieldList,
             java.util.function.Function<String, String> messageBuilder
     ) {
-        return List.of(rawFieldList.split(","))
+        Map<String, String> fieldErrors = new LinkedHashMap<>();
+        List.of(rawFieldList.split(","))
                 .stream()
                 .map(String::trim)
                 .filter(field -> !field.isBlank())
-                .map(field -> new ErrorResponse.FieldError(
-                        normalizeFieldKey(field),
-                        messageBuilder.apply(field)
-                ))
-                .toList();
+                .forEach(field -> fieldErrors.putIfAbsent(normalizeFieldKey(field), messageBuilder.apply(field)));
+        return fieldErrors;
     }
 
-    private String summarizeFieldErrors(List<ErrorResponse.FieldError> fieldErrors, String fallback) {
+    private String summarizeFieldErrors(Map<String, String> fieldErrors, String fallback) {
         if (fieldErrors == null || fieldErrors.isEmpty()) {
             return fallback;
         }
 
-        return fieldErrors.stream()
-                .map(ErrorResponse.FieldError::message)
+        return fieldErrors.values().stream()
                 .distinct()
                 .reduce((left, right) -> left + " | " + right)
                 .orElse(fallback);
@@ -558,7 +584,7 @@ public class GlobalExceptionHandler {
     private record ParsedDataIntegrityError(
             HttpStatus status,
             String message,
-            List<ErrorResponse.FieldError> fieldErrors
+            Map<String, String> fieldErrors
     ) {
     }
 }
