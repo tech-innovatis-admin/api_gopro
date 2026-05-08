@@ -15,6 +15,7 @@ import org.springframework.util.unit.DataSize;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.multipart.MultipartException;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
 
 import java.time.format.DateTimeParseException;
@@ -135,6 +136,20 @@ public class GlobalExceptionHandler {
         String message = "O arquivo excede o limite maximo permitido de " + toMbLabel(configuredMaxFileSize.toBytes()) + ".";
         return ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE)
                 .body(buildError(HttpStatus.PAYLOAD_TOO_LARGE, message, Map.of("file", message)));
+    }
+
+    @ExceptionHandler(MultipartException.class)
+    public ResponseEntity<ErrorResponse> handleMultipartException(
+            MultipartException exception,
+            HttpServletRequest request
+    ) {
+        String message = "Nao foi possivel concluir o upload. Verifique se o arquivo terminou de enviar e tente novamente.";
+        if (hasCauseMessage(exception, "stream ended unexpectedly")) {
+            message = "O envio do arquivo foi interrompido antes da conclusao. Tente enviar novamente.";
+        }
+
+        return ResponseEntity.badRequest()
+                .body(buildError(HttpStatus.BAD_REQUEST, message, Map.of("file", message)));
     }
 
     @ExceptionHandler(UnauthorizedException.class)
@@ -272,6 +287,24 @@ public class GlobalExceptionHandler {
         }
 
         return isClientAbort(throwable.getCause());
+    }
+
+    private boolean hasCauseMessage(Throwable throwable, String expectedMessage) {
+        if (throwable == null || expectedMessage == null || expectedMessage.isBlank()) {
+            return false;
+        }
+
+        Throwable current = throwable;
+        String expectedLower = expectedMessage.toLowerCase(Locale.ROOT);
+        while (current != null) {
+            String message = current.getMessage();
+            if (message != null && message.toLowerCase(Locale.ROOT).contains(expectedLower)) {
+                return true;
+            }
+            current = current.getCause();
+        }
+
+        return false;
     }
 
     private ErrorResponse buildError(

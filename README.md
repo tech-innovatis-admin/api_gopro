@@ -46,6 +46,7 @@ Configuracoes:
 
 ## Observacoes
 - Erros sao padronizados via `GlobalExceptionHandler`.
+- Falhas de upload multipart (envio interrompido/stream invalida) retornam `400` com mensagem amigavel no campo `file`.
 
 ## Rubricas
 

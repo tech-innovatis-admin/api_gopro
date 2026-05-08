@@ -10,6 +10,7 @@ import org.springframework.mock.http.MockHttpInputMessage;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.util.unit.DataSize;
+import org.springframework.web.multipart.MultipartException;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
 
 import java.nio.charset.StandardCharsets;
@@ -112,6 +113,22 @@ class GlobalExceptionHandlerTest {
                 "file",
                 "O arquivo excede o limite maximo permitido de 200 MB."
         );
+    }
+
+    @Test
+    void handleMultipartException_shouldReturnFriendlyMessage_whenUploadStreamIsInterrupted() {
+        MultipartException exception = new MultipartException(
+                "Failed to parse multipart servlet request",
+                new RuntimeException("Stream ended unexpectedly")
+        );
+
+        ResponseEntity<ErrorResponse> response = handler.handleMultipartException(exception, request());
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody().message()).isEqualTo("O envio do arquivo foi interrompido antes da conclusao. Tente enviar novamente.");
+        assertThat(response.getBody().fieldErrors())
+                .containsEntry("file", "O envio do arquivo foi interrompido antes da conclusao. Tente enviar novamente.");
     }
 
     @Test
