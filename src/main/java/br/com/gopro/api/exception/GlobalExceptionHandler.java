@@ -10,9 +10,12 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.validation.BindException;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.util.unit.DataSize;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 
 import java.time.format.DateTimeParseException;
 import java.util.LinkedHashMap;
@@ -100,6 +103,14 @@ public class GlobalExceptionHandler {
             Map.entry("descricao", "Descricao"),
             Map.entry("notes", "Observacoes")
     );
+    private DataSize configuredMaxFileSize = DataSize.ofMegabytes(200);
+
+    @Value("${app.documents.max-file-size:200MB}")
+    void setConfiguredMaxFileSize(DataSize configuredMaxFileSize) {
+        if (configuredMaxFileSize != null) {
+            this.configuredMaxFileSize = configuredMaxFileSize;
+        }
+    }
 
     @ExceptionHandler(ResourceNotFoundException.class)
     public ResponseEntity<ErrorResponse> handleNotFound(
@@ -114,6 +125,16 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> handleBusiness(BusinessException exception, HttpServletRequest request) {
         return ResponseEntity.badRequest()
                 .body(buildError(HttpStatus.BAD_REQUEST, sanitizeBusinessMessage(exception.getMessage()), null));
+    }
+
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public ResponseEntity<ErrorResponse> handleMaxUploadSizeExceeded(
+            MaxUploadSizeExceededException exception,
+            HttpServletRequest request
+    ) {
+        String message = "O arquivo excede o limite maximo permitido de " + toMbLabel(configuredMaxFileSize.toBytes()) + ".";
+        return ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE)
+                .body(buildError(HttpStatus.PAYLOAD_TOO_LARGE, message, Map.of("file", message)));
     }
 
     @ExceptionHandler(UnauthorizedException.class)
@@ -323,9 +344,9 @@ public class GlobalExceptionHandler {
             return new ParsedDataIntegrityError(
                     HttpStatus.CONFLICT,
                     "Ja existe uma rubrica com este nome neste contrato.",
-                    List.of(
-                            new ErrorResponse.FieldError("projectId", "Contrato ja possui uma rubrica com este nome."),
-                            new ErrorResponse.FieldError("name", "Ja existe uma rubrica com este nome neste contrato.")
+                    Map.of(
+                            "projectId", "Contrato ja possui uma rubrica com este nome.",
+                            "name", "Ja existe uma rubrica com este nome neste contrato."
                     )
             );
         }
@@ -579,6 +600,11 @@ public class GlobalExceptionHandler {
             return exception.getMessage();
         }
         return "";
+    }
+
+    private String toMbLabel(long sizeBytes) {
+        long sizeInMb = Math.max(1L, Math.round((double) sizeBytes / (1024D * 1024D)));
+        return sizeInMb + " MB";
     }
 
     private record ParsedDataIntegrityError(
