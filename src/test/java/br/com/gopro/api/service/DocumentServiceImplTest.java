@@ -17,6 +17,8 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.test.util.ReflectionTestUtils;
+import org.springframework.util.unit.DataSize;
 
 import java.net.URI;
 import java.time.Duration;
@@ -65,6 +67,7 @@ class DocumentServiceImplTest {
 
     @Test
     void upload_shouldThrowBusinessException_whenFileTooLarge() {
+        ReflectionTestUtils.setField(documentService, "maxFileSize", DataSize.ofMegabytes(20));
         byte[] data = new byte[(int) (20L * 1024L * 1024L + 1L)];
         MockMultipartFile file = new MockMultipartFile(
                 "file",
@@ -74,7 +77,8 @@ class DocumentServiceImplTest {
         );
 
         assertThatThrownBy(() -> documentService.upload(file, DocumentOwnerTypeEnum.PROJECT, 10L, null, 1L))
-                .isInstanceOf(BusinessException.class);
+                .isInstanceOf(BusinessException.class)
+                .hasMessage("O arquivo excede o limite maximo permitido de 20 MB.");
 
         verifyNoInteractions(documentRepository, storageService);
     }

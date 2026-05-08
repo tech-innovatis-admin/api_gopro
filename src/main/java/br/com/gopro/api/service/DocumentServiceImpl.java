@@ -12,6 +12,8 @@ import br.com.gopro.api.repository.DocumentRepository;
 import br.com.gopro.api.storage.StorageService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.util.unit.DataSize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -31,7 +33,6 @@ import java.util.UUID;
 @Slf4j
 public class DocumentServiceImpl implements DocumentService {
 
-    private static final long MAX_SIZE_BYTES = 20L * 1024L * 1024L;
     private static final Set<String> ALLOWED_CONTENT_TYPES = Set.of(
             "application/pdf",
             "image/png",
@@ -41,6 +42,8 @@ public class DocumentServiceImpl implements DocumentService {
     private final DocumentRepository documentRepository;
     private final StorageService storageService;
     private final DocumentsS3Properties documentsS3Properties;
+    @Value("${app.documents.max-file-size:200MB}")
+    private DataSize maxFileSize = DataSize.ofMegabytes(200);
 
     @Transactional
     @Override
@@ -148,8 +151,9 @@ public class DocumentServiceImpl implements DocumentService {
         if (file == null || file.isEmpty()) {
             throw new BusinessException("Arquivo obrigatorio");
         }
-        if (file.getSize() > MAX_SIZE_BYTES) {
-            throw new BusinessException("Arquivo excede o tamanho maximo de 20MB");
+        long maxFileSizeBytes = maxFileSize.toBytes();
+        if (file.getSize() > maxFileSizeBytes) {
+            throw new BusinessException("O arquivo excede o limite maximo permitido de " + toMbLabel(maxFileSizeBytes) + ".");
         }
         String contentType = file.getContentType();
         if (contentType == null || !ALLOWED_CONTENT_TYPES.contains(contentType)) {
@@ -185,6 +189,11 @@ public class DocumentServiceImpl implements DocumentService {
         } catch (NoSuchAlgorithmException | IOException ex) {
             return null;
         }
+    }
+
+    private String toMbLabel(long sizeBytes) {
+        long sizeInMb = Math.max(1L, Math.round((double) sizeBytes / (1024D * 1024D)));
+        return sizeInMb + " MB";
     }
 
     private DocumentResponseDTO toResponseDTO(Document document) {

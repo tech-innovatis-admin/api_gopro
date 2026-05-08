@@ -9,6 +9,8 @@ import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.mock.http.MockHttpInputMessage;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.util.unit.DataSize;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 
 import java.nio.charset.StandardCharsets;
 
@@ -75,10 +77,8 @@ class GlobalExceptionHandlerTest {
         assertThat(response.getBody()).isNotNull();
         assertThat(response.getBody().message()).isEqualTo("Ja existe uma rubrica com este nome neste contrato.");
         assertThat(response.getBody().fieldErrors())
-                .containsExactly(
-                        new ErrorResponse.FieldError("projectId", "Contrato ja possui uma rubrica com este nome."),
-                        new ErrorResponse.FieldError("name", "Ja existe uma rubrica com este nome neste contrato.")
-                );
+                .containsEntry("projectId", "Contrato ja possui uma rubrica com este nome.")
+                .containsEntry("name", "Ja existe uma rubrica com este nome neste contrato.");
     }
 
     @Test
@@ -95,6 +95,23 @@ class GlobalExceptionHandlerTest {
         assertThat(response.getBody().message())
                 .isEqualTo("Um dos campos de texto excedeu o limite de 255 caracteres");
         assertThat(response.getBody().fieldErrors()).isNull();
+    }
+
+    @Test
+    void handleMaxUploadSizeExceeded_shouldReturnFriendlyPayloadTooLargeMessage() {
+        handler.setConfiguredMaxFileSize(DataSize.ofMegabytes(200));
+        ResponseEntity<ErrorResponse> response = handler.handleMaxUploadSizeExceeded(
+                new MaxUploadSizeExceededException(200L * 1024L * 1024L),
+                request()
+        );
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.PAYLOAD_TOO_LARGE);
+        assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody().message()).isEqualTo("O arquivo excede o limite maximo permitido de 200 MB.");
+        assertThat(response.getBody().fieldErrors()).containsEntry(
+                "file",
+                "O arquivo excede o limite maximo permitido de 200 MB."
+        );
     }
 
     @Test
