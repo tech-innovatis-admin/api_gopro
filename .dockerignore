@@ -23,7 +23,6 @@ storage/
 *.local
 *.tmp
 **/.DS_Store
-!.env.local
 .classpath
 .factorypath
 .project
