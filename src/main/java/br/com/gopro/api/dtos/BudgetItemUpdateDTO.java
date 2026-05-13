@@ -11,6 +11,10 @@ public record BudgetItemUpdateDTO(
         BigDecimal plannedAmount,
         BigDecimal executedAmount,
         Long goalId,
+        Long projectPeopleId,
+        Long projectCompanyId,
+        String beneficiaryType,
+        BigDecimal contractedAmount,
         String notes,
         Long updatedBy
 ) {}

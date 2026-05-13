@@ -47,6 +47,20 @@ public class BudgetItem {
     @JoinColumn(name = "goal_id", foreignKey = @ForeignKey(name = "fk_budget_item_goal_id"))
     private Goal goal;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "project_people_id", foreignKey = @ForeignKey(name = "fk_budget_items_project_people_id"))
+    private ProjectPeople projectPeople;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "project_company_id", foreignKey = @ForeignKey(name = "fk_budget_items_project_company_id"))
+    private ProjectCompany projectCompany;
+
+    @Column(name = "beneficiary_type", length = 20)
+    private String beneficiaryType;
+
+    @Column(name = "contracted_amount", precision = 15, scale = 2)
+    private BigDecimal contractedAmount;
+
     @Column(name = "notes", columnDefinition = "text")
     private String notes;
     @Column(name = "is_active")

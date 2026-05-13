@@ -5,6 +5,8 @@ import br.com.gopro.api.dtos.BudgetItemResponseDTO;
 import br.com.gopro.api.dtos.BudgetItemUpdateDTO;
 import br.com.gopro.api.model.BudgetCategory;
 import br.com.gopro.api.model.BudgetItem;
+import br.com.gopro.api.model.ProjectCompany;
+import br.com.gopro.api.model.ProjectPeople;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -19,6 +21,10 @@ public class BudgetItemMapper {
         budgetItem.setUnitCost(dto.unitCost());
         budgetItem.setPlannedAmount(dto.plannedAmount());
         budgetItem.setExecutedAmount(dto.executedAmount());
+        budgetItem.setProjectPeople(toProjectPeopleReference(dto.projectPeopleId()));
+        budgetItem.setProjectCompany(toProjectCompanyReference(dto.projectCompanyId()));
+        budgetItem.setBeneficiaryType(dto.beneficiaryType());
+        budgetItem.setContractedAmount(dto.contractedAmount());
         budgetItem.setNotes(dto.notes());
         budgetItem.setCreatedBy(dto.createdBy());
         return budgetItem;
@@ -35,6 +41,10 @@ public class BudgetItemMapper {
                 budgetItem.getPlannedAmount(),
                 budgetItem.getExecutedAmount(),
                 budgetItem.getGoal() != null ? budgetItem.getGoal().getId() : null,
+                budgetItem.getProjectPeople() != null ? budgetItem.getProjectPeople().getId() : null,
+                budgetItem.getProjectCompany() != null ? budgetItem.getProjectCompany().getId() : null,
+                budgetItem.getBeneficiaryType(),
+                budgetItem.getContractedAmount(),
                 budgetItem.getNotes(),
                 budgetItem.getIsActive(),
                 budgetItem.getCreatedAt(),
@@ -66,6 +76,18 @@ public class BudgetItemMapper {
         if (dto.executedAmount() != null) {
             budgetItem.setExecutedAmount(dto.executedAmount());
         }
+        if (dto.projectPeopleId() != null) {
+            budgetItem.setProjectPeople(toProjectPeopleReference(dto.projectPeopleId()));
+        }
+        if (dto.projectCompanyId() != null) {
+            budgetItem.setProjectCompany(toProjectCompanyReference(dto.projectCompanyId()));
+        }
+        if (dto.beneficiaryType() != null) {
+            budgetItem.setBeneficiaryType(dto.beneficiaryType());
+        }
+        if (dto.contractedAmount() != null) {
+            budgetItem.setContractedAmount(dto.contractedAmount());
+        }
         if (dto.notes() != null) {
             budgetItem.setNotes(dto.notes());
         }
@@ -82,5 +104,23 @@ public class BudgetItemMapper {
         BudgetCategory category = new BudgetCategory();
         category.setId(categoryId);
         return category;
+    }
+
+    private ProjectPeople toProjectPeopleReference(Long projectPeopleId) {
+        if (projectPeopleId == null) {
+            return null;
+        }
+        ProjectPeople projectPeople = new ProjectPeople();
+        projectPeople.setId(projectPeopleId);
+        return projectPeople;
+    }
+
+    private ProjectCompany toProjectCompanyReference(Long projectCompanyId) {
+        if (projectCompanyId == null) {
+            return null;
+        }
+        ProjectCompany projectCompany = new ProjectCompany();
+        projectCompany.setId(projectCompanyId);
+        return projectCompany;
     }
 }

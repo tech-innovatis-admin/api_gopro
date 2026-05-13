@@ -14,6 +14,10 @@ public record BudgetItemRequestDTO(
         @NotNull(message = "Valor planejado e obrigatorio") BigDecimal plannedAmount,
         BigDecimal executedAmount,
         Long goalId,
+        Long projectPeopleId,
+        Long projectCompanyId,
+        String beneficiaryType,
+        BigDecimal contractedAmount,
         String notes,
         Long createdBy
 ) {}
