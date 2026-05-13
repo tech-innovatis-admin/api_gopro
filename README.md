@@ -53,6 +53,31 @@ Configuracoes:
 Categorias orcamentarias (`budget_categories`) podem repetir o mesmo `name` em contratos/projetos diferentes.
 Dentro do mesmo contrato/projeto (`projectId`), o `name` continua unico.
 
+### Beneficiario de rubrica (nova modelagem)
+
+Migrations de producao:
+- `V047__add_budget_item_beneficiary_fields.sql`
+- `V048__create_beneficiary_budget_summary_view.sql`
+
+Campos adicionados em `budget_items`:
+- `project_people_id` (FK `project_people.id`)
+- `project_company_id` (FK `project_company.id`)
+- `beneficiary_type` (`person` | `company` | `null`)
+- `contracted_amount`
+
+Regra:
+- `project_people_id` e `project_company_id` nao podem coexistir no mesmo item.
+- `organizations` nao participa do fluxo de beneficiario de rubrica.
+- `expenses.organization_id` permanece no schema por compatibilidade, mas e ignorado na atribuicao de beneficiario.
+
+Endpoints:
+- `PUT /budget-items/{id}/beneficiary`
+- `PATCH /budget-items/{id}/beneficiary/contracted-amount`
+- `DELETE /budget-items/{id}/beneficiary`
+- `GET /projects/{projectId}/budget/beneficiary-summary`
+- `GET /projects/{projectId}/budget/person-totals/{projectPeopleId}`
+- `GET /projects/{projectId}/budget/company-totals/{projectCompanyId}`
+
 ## Empresas
 
 Os endpoints de empresas e a listagem detalhada de empresas por projeto agora suportam um responsavel opcional:
