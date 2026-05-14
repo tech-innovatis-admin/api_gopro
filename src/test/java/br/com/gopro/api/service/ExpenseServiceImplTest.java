@@ -21,6 +21,7 @@ import br.com.gopro.api.repository.ExpenseRepository;
 import br.com.gopro.api.repository.IncomeRepository;
 import br.com.gopro.api.repository.OrganizationRepository;
 import br.com.gopro.api.repository.PeopleRepository;
+import br.com.gopro.api.repository.ProjectCompanyRepository;
 import br.com.gopro.api.repository.ProjectRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -65,6 +66,9 @@ class ExpenseServiceImplTest {
     private OrganizationRepository organizationRepository;
 
     @Mock
+    private ProjectCompanyRepository projectCompanyRepository;
+
+    @Mock
     private DocumentRepository documentRepository;
 
     @Mock
@@ -72,6 +76,9 @@ class ExpenseServiceImplTest {
 
     @Mock
     private ProjectFinancialSummaryService projectFinancialSummaryService;
+
+    @Mock
+    private ProjectCompanyFinancialValidationService projectCompanyFinancialValidationService;
 
     @InjectMocks
     private ExpenseServiceImpl service;
@@ -88,6 +95,7 @@ class ExpenseServiceImplTest {
                 new BigDecimal("250.00"),
                 ExpensePaymentStatusEnum.PAGO,
                 ExpensePaidByEnum.INNOVATIS,
+                null,
                 null,
                 null,
                 "Servico especializado",
@@ -142,6 +150,7 @@ class ExpenseServiceImplTest {
                 ExpensePaidByEnum.INNOVATIS,
                 null,
                 null,
+                null,
                 "Despesa derivada",
                 null,
                 null,
@@ -178,6 +187,7 @@ class ExpenseServiceImplTest {
                 new BigDecimal("80.00"),
                 ExpensePaymentStatusEnum.PAGO,
                 ExpensePaidByEnum.INNOVATIS,
+                null,
                 null,
                 null,
                 "Despesa invalida",
@@ -219,6 +229,7 @@ class ExpenseServiceImplTest {
                 new BigDecimal("150.00"),
                 ExpensePaymentStatusEnum.PAGO,
                 ExpensePaidByEnum.EXECUCAO,
+                null,
                 null,
                 null,
                 "Despesa atualizada",
@@ -302,6 +313,7 @@ class ExpenseServiceImplTest {
                 ExpensePaidByEnum.INNOVATIS,
                 null,
                 null,
+                null,
                 "Despesa antiga",
                 null,
                 null,
@@ -318,8 +330,10 @@ class ExpenseServiceImplTest {
         ExpenseResponseDTO result = service.updateExpenseById(778L, dto);
 
         assertThat(existingExpense.getPerson()).isNull();
+        assertThat(existingExpense.getProjectCompany()).isNull();
         assertThat(existingExpense.getOrganization()).isNull();
         assertThat(result.personId()).isNull();
+        assertThat(result.projectCompanyId()).isNull();
         assertThat(result.organizationId()).isNull();
     }
 
@@ -354,6 +368,7 @@ class ExpenseServiceImplTest {
                 expense.getPaymentStatus(),
                 expense.getPaidBy() != null ? expense.getPaidBy() : ExpensePaidByEnum.INNOVATIS,
                 expense.getPerson() != null ? expense.getPerson().getId() : null,
+                expense.getProjectCompany() != null ? expense.getProjectCompany().getId() : null,
                 expense.getOrganization() != null ? expense.getOrganization().getId() : null,
                 expense.getDescription(),
                 expense.getInvoiceNumber(),

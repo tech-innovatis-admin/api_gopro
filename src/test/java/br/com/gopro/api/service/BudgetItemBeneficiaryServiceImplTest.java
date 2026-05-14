@@ -46,6 +46,9 @@ class BudgetItemBeneficiaryServiceImplTest {
     @Mock
     private AuditLogService auditLogService;
 
+    @Mock
+    private ProjectCompanyFinancialValidationService projectCompanyFinancialValidationService;
+
     private BudgetItemBeneficiaryServiceImpl service;
 
     @BeforeEach
@@ -55,7 +58,8 @@ class BudgetItemBeneficiaryServiceImplTest {
                 projectPeopleRepository,
                 projectCompanyRepository,
                 beneficiaryBudgetSummaryRepository,
-                auditLogService
+                auditLogService,
+                projectCompanyFinancialValidationService
         );
     }
 
