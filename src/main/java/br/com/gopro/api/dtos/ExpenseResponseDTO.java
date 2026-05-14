@@ -20,6 +20,7 @@ public record ExpenseResponseDTO(
         ExpensePaymentStatusEnum paymentStatus,
         ExpensePaidByEnum paidBy,
         Long personId,
+        Long projectCompanyId,
         Long organizationId,
         String description,
         String invoiceNumber,

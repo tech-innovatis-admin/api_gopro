@@ -36,6 +36,7 @@ public class BudgetItemBeneficiaryServiceImpl implements BudgetItemBeneficiarySe
     private final ProjectCompanyRepository projectCompanyRepository;
     private final BeneficiaryBudgetSummaryRepository beneficiaryBudgetSummaryRepository;
     private final AuditLogService auditLogService;
+    private final ProjectCompanyFinancialValidationService projectCompanyFinancialValidationService;
 
     @Override
     @Transactional
@@ -70,6 +71,12 @@ public class BudgetItemBeneficiaryServiceImpl implements BudgetItemBeneficiarySe
                     throw new IllegalArgumentException("Vinculo empresa-projeto nao pertence ao mesmo projeto do item orcamentario");
                 }
                 rejectIfDifferentBeneficiaryAlreadyAssigned(budgetItem, "company", referenceId);
+                projectCompanyFinancialValidationService.validateCanLinkToBudgetItem(
+                        projectId,
+                        referenceId,
+                        contractedAmount,
+                        budgetItemId
+                );
                 budgetItem.setProjectCompany(projectCompany);
                 budgetItem.setProjectPeople(null);
             }
@@ -113,6 +120,12 @@ public class BudgetItemBeneficiaryServiceImpl implements BudgetItemBeneficiarySe
         validateContractedAmount(newAmount, false);
         Map<String, Object> before = snapshotBeneficiaryFields(budgetItem);
         try {
+            projectCompanyFinancialValidationService.validateCanLinkToBudgetItem(
+                    resolveProjectId(budgetItem),
+                    budgetItem.getProjectCompany() != null ? budgetItem.getProjectCompany().getId() : null,
+                    newAmount,
+                    budgetItemId
+            );
             budgetItem.setContractedAmount(newAmount);
             budgetItem.setUpdatedBy(actorUserId);
             budgetItemRepository.save(budgetItem);

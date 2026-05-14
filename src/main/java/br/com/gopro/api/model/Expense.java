@@ -65,6 +65,10 @@ public class Expense {
     @JoinColumn(name = "organization_id", foreignKey = @ForeignKey(name = "fk_expense_organization_id"))
     private Organization organization;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "project_company_id", foreignKey = @ForeignKey(name = "fk_expenses_project_company_id"))
+    private ProjectCompany projectCompany;
+
     @Column(name = "description", length = 255)
     private String description;
 

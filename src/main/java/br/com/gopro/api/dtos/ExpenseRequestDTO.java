@@ -19,6 +19,7 @@ public record ExpenseRequestDTO(
         @NotNull(message = "Status do pagamento e obrigatorio") ExpensePaymentStatusEnum paymentStatus,
         ExpensePaidByEnum paidBy,
         Long personId,
+        Long projectCompanyId,
         Long organizationId,
         String description,
         String invoiceNumber,

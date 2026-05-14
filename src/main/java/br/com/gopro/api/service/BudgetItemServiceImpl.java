@@ -7,7 +7,9 @@ import br.com.gopro.api.dtos.PageResponseDTO;
 import br.com.gopro.api.exception.BusinessException;
 import br.com.gopro.api.exception.ResourceNotFoundException;
 import br.com.gopro.api.mapper.BudgetItemMapper;
+import br.com.gopro.api.model.BudgetCategory;
 import br.com.gopro.api.model.BudgetItem;
+import br.com.gopro.api.repository.BudgetCategoryRepository;
 import br.com.gopro.api.repository.BudgetItemRepository;
 import br.com.gopro.api.repository.GoalRepository;
 import lombok.RequiredArgsConstructor;
@@ -26,13 +28,17 @@ public class BudgetItemServiceImpl implements BudgetItemService {
     private final BudgetItemRepository budgetItemRepository;
     private final BudgetItemMapper budgetItemMapper;
     private final GoalRepository goalRepository;
+    private final BudgetCategoryRepository budgetCategoryRepository;
+    private final ProjectCompanyFinancialValidationService projectCompanyFinancialValidationService;
 
     @Override
     public BudgetItemResponseDTO createBudgetItem(BudgetItemRequestDTO dto) {
         BudgetItem budgetItem = budgetItemMapper.toEntity(dto);
+        applyCategoryReferenceOnCreate(budgetItem, dto.categoryId());
         applyGoalReferenceOnCreate(budgetItem, dto.goalId());
         budgetItem.setIsActive(true);
         applyDefaults(budgetItem);
+        validateProjectCompanyBudgetItem(budgetItem, null);
         BudgetItem saved = budgetItemRepository.save(budgetItem);
         return budgetItemMapper.toDTO(saved);
     }
@@ -82,8 +88,10 @@ public class BudgetItemServiceImpl implements BudgetItemService {
             throw new BusinessException("Nao e possivel atualizar um item inativo");
         }
         budgetItemMapper.updateEntityFromDTO(dto, budgetItem);
+        applyCategoryReferenceOnUpdate(budgetItem, dto.categoryId());
         applyGoalReferenceOnUpdate(budgetItem, dto.goalId());
         applyDefaults(budgetItem);
+        validateProjectCompanyBudgetItem(budgetItem, budgetItem.getId());
         BudgetItem updated = budgetItemRepository.save(budgetItem);
         return budgetItemMapper.toDTO(updated);
     }
@@ -126,6 +134,22 @@ public class BudgetItemServiceImpl implements BudgetItemService {
         }
     }
 
+    private void applyCategoryReferenceOnCreate(BudgetItem budgetItem, Long categoryId) {
+        BudgetCategory category = budgetCategoryRepository.findById(categoryId)
+                .orElseThrow(() -> new ResourceNotFoundException("Categoria orcamentaria nao encontrada"));
+        budgetItem.setCategory(category);
+    }
+
+    private void applyCategoryReferenceOnUpdate(BudgetItem budgetItem, Long categoryId) {
+        if (categoryId == null) {
+            return;
+        }
+
+        BudgetCategory category = budgetCategoryRepository.findById(categoryId)
+                .orElseThrow(() -> new ResourceNotFoundException("Categoria orcamentaria nao encontrada"));
+        budgetItem.setCategory(category);
+    }
+
     private void applyGoalReferenceOnCreate(BudgetItem budgetItem, Long goalId) {
         if (goalId == null) {
             budgetItem.setGoal(null);
@@ -144,5 +168,16 @@ public class BudgetItemServiceImpl implements BudgetItemService {
         if (budgetItem.getGoal() != null && budgetItem.getGoal().getId() == null) {
             budgetItem.setGoal(null);
         }
+    }
+
+    private void validateProjectCompanyBudgetItem(BudgetItem budgetItem, Long ignoredBudgetItemId) {
+        projectCompanyFinancialValidationService.validateCanLinkToBudgetItem(
+                budgetItem.getCategory() != null && budgetItem.getCategory().getProject() != null
+                        ? budgetItem.getCategory().getProject().getId()
+                        : null,
+                budgetItem.getProjectCompany() != null ? budgetItem.getProjectCompany().getId() : null,
+                budgetItem.getContractedAmount() != null ? budgetItem.getContractedAmount() : budgetItem.getPlannedAmount(),
+                ignoredBudgetItemId
+        );
     }
 }

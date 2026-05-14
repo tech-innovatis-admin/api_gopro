@@ -1,5 +1,7 @@
 package br.com.gopro.api.dtos;
 
+import br.com.gopro.api.enums.ContractingStatusEnum;
+
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -12,7 +14,7 @@ public record ProjectCompanyResponseDTO(
         String description,
         LocalDate startDate,
         LocalDate endDate,
-        Short status,
+        ContractingStatusEnum status,
         BigDecimal totalValue,
         String notes,
         Boolean isIncubated,

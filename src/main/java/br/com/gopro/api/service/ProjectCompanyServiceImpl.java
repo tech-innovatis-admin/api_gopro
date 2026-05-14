@@ -5,6 +5,7 @@ import br.com.gopro.api.dtos.ProjectCompanyDetailedResponseDTO;
 import br.com.gopro.api.dtos.ProjectCompanyRequestDTO;
 import br.com.gopro.api.dtos.ProjectCompanyResponseDTO;
 import br.com.gopro.api.dtos.ProjectCompanyUpdateDTO;
+import br.com.gopro.api.enums.ContractingStatusEnum;
 import br.com.gopro.api.exception.BusinessException;
 import br.com.gopro.api.exception.ResourceNotFoundException;
 import br.com.gopro.api.mapper.ProjectCompanyMapper;
@@ -31,6 +32,9 @@ public class ProjectCompanyServiceImpl implements ProjectCompanyService {
         ProjectCompany projectCompany = projectCompanyMapper.toEntity(dto);
         if (isBlank(projectCompany.getContractNumber())) {
             projectCompany.setContractNumber(generateContractNumber());
+        }
+        if (projectCompany.getStatus() == null) {
+            projectCompany.setStatus(ContractingStatusEnum.EM_CADASTRO);
         }
         projectCompany.setIsActive(true);
         ProjectCompany saved = projectCompanyRepository.save(projectCompany);

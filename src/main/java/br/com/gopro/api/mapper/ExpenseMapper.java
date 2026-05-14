@@ -37,6 +37,7 @@ public class ExpenseMapper {
                 expense.getPaymentStatus(),
                 expense.getPaidBy() != null ? expense.getPaidBy() : ExpensePaidByEnum.INNOVATIS,
                 expense.getPerson() != null ? expense.getPerson().getId() : null,
+                expense.getProjectCompany() != null ? expense.getProjectCompany().getId() : null,
                 expense.getOrganization() != null ? expense.getOrganization().getId() : null,
                 expense.getDescription(),
                 expense.getInvoiceNumber(),

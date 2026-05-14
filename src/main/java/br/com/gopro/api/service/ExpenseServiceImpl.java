@@ -15,6 +15,7 @@ import br.com.gopro.api.repository.ExpenseRepository;
 import br.com.gopro.api.repository.IncomeRepository;
 import br.com.gopro.api.repository.OrganizationRepository;
 import br.com.gopro.api.repository.PeopleRepository;
+import br.com.gopro.api.repository.ProjectCompanyRepository;
 import br.com.gopro.api.repository.ProjectRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -36,9 +37,11 @@ public class ExpenseServiceImpl implements ExpenseService {
     private final IncomeRepository incomeRepository;
     private final PeopleRepository peopleRepository;
     private final OrganizationRepository organizationRepository;
+    private final ProjectCompanyRepository projectCompanyRepository;
     private final DocumentRepository documentRepository;
     private final ProjectRepository projectRepository;
     private final ProjectFinancialSummaryService projectFinancialSummaryService;
+    private final ProjectCompanyFinancialValidationService projectCompanyFinancialValidationService;
 
     @Override
     @Transactional
@@ -46,6 +49,7 @@ public class ExpenseServiceImpl implements ExpenseService {
         Expense expense = expenseMapper.toEntity(dto);
         applyReferencesOnCreate(expense, dto);
         expense.setIsActive(true);
+        validateProjectCompanyPayment(expense, null);
         Expense saved = expenseRepository.save(expense);
         projectFinancialSummaryService.refreshExpenseAggregates(
                 saved.getProject() != null ? saved.getProject().getId() : null,
@@ -99,6 +103,7 @@ public class ExpenseServiceImpl implements ExpenseService {
         Long previousBudgetItemId = expense.getBudgetItem() != null ? expense.getBudgetItem().getId() : null;
         expenseMapper.updateEntityFromDTO(dto, expense);
         applyReferencesOnUpdate(expense, dto);
+        validateProjectCompanyPayment(expense, expense.getId());
         Expense updated = expenseRepository.save(expense);
         projectFinancialSummaryService.refreshExpenseAggregates(
                 updated.getProject() != null ? updated.getProject().getId() : null,
@@ -157,7 +162,7 @@ public class ExpenseServiceImpl implements ExpenseService {
         expense.setBudgetItem(budgetItemRepository.getReferenceById(dto.budgetItemId()));
         expense.setCategory(budgetCategoryRepository.getReferenceById(dto.categoryId()));
         expense.setIncome(null);
-        applyPaymentLink(expense, dto.personId(), dto.organizationId());
+        applyPaymentLink(expense, dto.personId(), dto.projectCompanyId(), dto.organizationId());
         expense.setDocument(dto.documentId() != null ? documentRepository.getReferenceById(dto.documentId()) : null);
     }
 
@@ -173,25 +178,43 @@ public class ExpenseServiceImpl implements ExpenseService {
         if (dto.categoryId() != null) {
             expense.setCategory(budgetCategoryRepository.getReferenceById(dto.categoryId()));
         }
-        applyPaymentLink(expense, dto.personId(), dto.organizationId());
+        applyPaymentLink(expense, dto.personId(), dto.projectCompanyId(), dto.organizationId());
         if (dto.documentId() != null) {
             expense.setDocument(documentRepository.getReferenceById(dto.documentId()));
         }
     }
 
-    private void applyPaymentLink(Expense expense, Long personId, Long organizationId) {
+    private void applyPaymentLink(Expense expense, Long personId, Long projectCompanyId, Long organizationId) {
         if (personId != null) {
             expense.setPerson(peopleRepository.getReferenceById(personId));
+            expense.setProjectCompany(null);
+            expense.setOrganization(null);
+            return;
+        }
+        if (projectCompanyId != null) {
+            expense.setProjectCompany(projectCompanyRepository.getReferenceById(projectCompanyId));
+            expense.setPerson(null);
             expense.setOrganization(null);
             return;
         }
         if (organizationId != null) {
             expense.setOrganization(organizationRepository.getReferenceById(organizationId));
             expense.setPerson(null);
+            expense.setProjectCompany(null);
             return;
         }
         expense.setPerson(null);
+        expense.setProjectCompany(null);
         expense.setOrganization(null);
+    }
+
+    private void validateProjectCompanyPayment(Expense expense, Long ignoredExpenseId) {
+        projectCompanyFinancialValidationService.validateCanReceivePayment(
+                expense.getProject() != null ? expense.getProject().getId() : null,
+                expense.getProjectCompany() != null ? expense.getProjectCompany().getId() : null,
+                expense.getAmount(),
+                ignoredExpenseId
+        );
     }
 
     private Long resolveProjectId(Long projectId, Long incomeId) {

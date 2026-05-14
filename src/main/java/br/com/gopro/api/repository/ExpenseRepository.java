@@ -45,4 +45,18 @@ public interface ExpenseRepository extends JpaRepository<Expense, Long> {
       and e.isActive = true
 """)
     BigDecimal sumExpenseByBudgetItemId(@Param("budgetItemId") Long budgetItemId);
+
+    @Query("""
+    select coalesce(sum(e.amount), 0)
+    from Expense e
+    where e.project.id = :projectId
+      and e.projectCompany.id = :projectCompanyId
+      and e.isActive = true
+      and (:ignoredExpenseId is null or e.id <> :ignoredExpenseId)
+""")
+    BigDecimal sumAmountByProjectAndProjectCompanyIgnoringExpense(
+            @Param("projectId") Long projectId,
+            @Param("projectCompanyId") Long projectCompanyId,
+            @Param("ignoredExpenseId") Long ignoredExpenseId
+    );
 }

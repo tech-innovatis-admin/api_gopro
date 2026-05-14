@@ -48,4 +48,18 @@ public interface BudgetItemRepository extends JpaRepository<BudgetItem, Long> {
             @Param("projectId") Long projectId,
             @Param("projectCompanyId") Long projectCompanyId
     );
+
+    @Query("""
+        select coalesce(sum(i.contractedAmount), 0)
+        from BudgetItem i
+        where i.category.project.id = :projectId
+          and i.projectCompany.id = :projectCompanyId
+          and i.isActive = true
+          and (:ignoredBudgetItemId is null or i.id <> :ignoredBudgetItemId)
+    """)
+    BigDecimal sumContractedAmountByProjectAndProjectCompanyIgnoringItem(
+            @Param("projectId") Long projectId,
+            @Param("projectCompanyId") Long projectCompanyId,
+            @Param("ignoredBudgetItemId") Long ignoredBudgetItemId
+    );
 }

@@ -1,5 +1,6 @@
 package br.com.gopro.api.model;
 
+import br.com.gopro.api.enums.ContractingStatusEnum;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -42,8 +43,9 @@ public class ProjectCompany {
     @Column(name = "end_date")
     private LocalDate endDate;
 
-    @Column(name = "status")
-    private Short status;
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status", length = 30, nullable = false)
+    private ContractingStatusEnum status;
 
     @Column(name = "total_value", precision = 15, scale = 2)
     private BigDecimal totalValue;
