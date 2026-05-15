@@ -46,9 +46,10 @@ public class BudgetItemController {
             @Parameter(description = "Numero da pagina") @RequestParam(defaultValue = "0") int page,
             @Parameter(description = "Tamanho da pagina") @RequestParam(defaultValue = "10") int size,
             @Parameter(description = "ID da categoria para filtro") @RequestParam(required = false) Long categoryId,
-            @Parameter(description = "ID do projeto para filtro") @RequestParam(required = false) Long projectId
+            @Parameter(description = "ID do projeto para filtro") @RequestParam(required = false) Long projectId,
+            @Parameter(description = "ID do vinculo projeto-empresa para filtro") @RequestParam(required = false) Long projectCompanyId
     ) {
-        return ResponseEntity.ok(budgetItemService.listAllBudgetItems(page, size, categoryId, projectId));
+        return ResponseEntity.ok(budgetItemService.listAllBudgetItems(page, size, categoryId, projectId, projectCompanyId));
     }
 
     @Operation(summary = "Buscar item orcamentario por ID")

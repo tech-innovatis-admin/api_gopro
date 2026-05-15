@@ -51,11 +51,24 @@ public class BudgetItemServiceImpl implements BudgetItemService {
     }
 
     @Override
-    public PageResponseDTO<BudgetItemResponseDTO> listAllBudgetItems(int page, int size, Long categoryId, Long projectId) {
+    public PageResponseDTO<BudgetItemResponseDTO> listAllBudgetItems(
+            int page,
+            int size,
+            Long categoryId,
+            Long projectId,
+            Long projectCompanyId
+    ) {
         validatePage(page, size);
+        validateProjectCompanyFilter(projectCompanyId);
         Pageable pageable = PageRequest.of(page, size);
         Page<BudgetItem> pageResult;
-        if (categoryId != null) {
+        if (categoryId != null && projectCompanyId != null) {
+            pageResult = budgetItemRepository.findByIsActiveTrueAndCategory_IdAndProjectCompany_Id(categoryId, projectCompanyId, pageable);
+        } else if (projectId != null && projectCompanyId != null) {
+            pageResult = budgetItemRepository.findByIsActiveTrueAndCategory_Project_IdAndProjectCompany_Id(projectId, projectCompanyId, pageable);
+        } else if (projectCompanyId != null) {
+            pageResult = budgetItemRepository.findByIsActiveTrueAndProjectCompany_Id(projectCompanyId, pageable);
+        } else if (categoryId != null) {
             pageResult = budgetItemRepository.findByIsActiveTrueAndCategory_Id(categoryId, pageable);
         } else if (projectId != null) {
             pageResult = budgetItemRepository.findByIsActiveTrueAndCategory_Project_Id(projectId, pageable);
@@ -132,6 +145,15 @@ public class BudgetItemServiceImpl implements BudgetItemService {
         }
         if (size <= 0 || size > 100) {
             throw new BusinessException("Tamanho da pagina deve estar entre 1 e 100");
+        }
+    }
+
+    private void validateProjectCompanyFilter(Long projectCompanyId) {
+        if (projectCompanyId == null) {
+            return;
+        }
+        if (projectCompanyId <= 0 || !projectCompanyRepository.existsById(projectCompanyId)) {
+            throw new ResourceNotFoundException("Empresa vinculada ao projeto nao encontrada");
         }
     }
 

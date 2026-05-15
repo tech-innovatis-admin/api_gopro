@@ -7,7 +7,13 @@ import br.com.gopro.api.dtos.PageResponseDTO;
 
 public interface BudgetItemService {
     BudgetItemResponseDTO createBudgetItem(BudgetItemRequestDTO dto);
-    PageResponseDTO<BudgetItemResponseDTO> listAllBudgetItems(int page, int size, Long categoryId, Long projectId);
+    PageResponseDTO<BudgetItemResponseDTO> listAllBudgetItems(
+            int page,
+            int size,
+            Long categoryId,
+            Long projectId,
+            Long projectCompanyId
+    );
     BudgetItemResponseDTO findBudgetItemById(Long id);
     BudgetItemResponseDTO updateBudgetItemById(Long id, BudgetItemUpdateDTO dto);
     void deleteBudgetItemById(Long id);

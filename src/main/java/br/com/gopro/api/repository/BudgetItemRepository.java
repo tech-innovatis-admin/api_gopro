@@ -17,6 +17,9 @@ public interface BudgetItemRepository extends JpaRepository<BudgetItem, Long> {
     Page<BudgetItem> findByIsActiveTrue(Pageable pageable);
     Page<BudgetItem> findByIsActiveTrueAndCategory_Id(Long categoryId, Pageable pageable);
     Page<BudgetItem> findByIsActiveTrueAndCategory_Project_Id(Long projectId, Pageable pageable);
+    Page<BudgetItem> findByIsActiveTrueAndProjectCompany_Id(Long projectCompanyId, Pageable pageable);
+    Page<BudgetItem> findByIsActiveTrueAndCategory_Project_IdAndProjectCompany_Id(Long projectId, Long projectCompanyId, Pageable pageable);
+    Page<BudgetItem> findByIsActiveTrueAndCategory_IdAndProjectCompany_Id(Long categoryId, Long projectCompanyId, Pageable pageable);
 
     @Query("select i.category.project.id from BudgetItem i where i.id = :id")
     Optional<Long> findProjectIdById(@Param("id") Long id);

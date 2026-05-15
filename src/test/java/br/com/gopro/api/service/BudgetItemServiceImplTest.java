@@ -18,13 +18,17 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -137,6 +141,54 @@ class BudgetItemServiceImplTest {
         assertThat(response.projectCompanyId()).isNull();
     }
 
+    @Test
+    void listAllBudgetItems_shouldKeepCurrentBehaviorWhenProjectCompanyFilterIsMissing() {
+        BudgetItem item = savedItem(100L, 1L, 10L);
+        when(budgetItemRepository.findByIsActiveTrueAndCategory_Project_Id(10L, PageRequest.of(0, 10)))
+                .thenReturn(new PageImpl<>(List.of(item), PageRequest.of(0, 10), 1));
+
+        var response = service.listAllBudgetItems(0, 10, null, 10L, null);
+
+        assertThat(response.content()).hasSize(1);
+        assertThat(response.content().get(0).id()).isEqualTo(100L);
+        verify(projectCompanyRepository, never()).existsById(any());
+    }
+
+    @Test
+    void listAllBudgetItems_shouldFilterByProjectCompanyWhenOnlyProjectCompanyFilterIsPresent() {
+        BudgetItem item = savedItem(100L, 1L, 10L);
+        item.setProjectCompany(new br.com.gopro.api.model.ProjectCompany());
+        item.getProjectCompany().setId(20L);
+        when(projectCompanyRepository.existsById(20L)).thenReturn(true);
+        when(budgetItemRepository.findByIsActiveTrueAndProjectCompany_Id(20L, PageRequest.of(0, 10)))
+                .thenReturn(new PageImpl<>(List.of(item), PageRequest.of(0, 10), 1));
+
+        var response = service.listAllBudgetItems(0, 10, null, null, 20L);
+
+        assertThat(response.content()).hasSize(1);
+        assertThat(response.content().get(0).projectCompanyId()).isEqualTo(20L);
+    }
+
+    @Test
+    void listAllBudgetItems_shouldFilterByProjectAndProjectCompanyWhenBothFiltersArePresent() {
+        when(projectCompanyRepository.existsById(20L)).thenReturn(true);
+        when(budgetItemRepository.findByIsActiveTrueAndCategory_Project_IdAndProjectCompany_Id(10L, 20L, PageRequest.of(0, 10)))
+                .thenReturn(new PageImpl<>(List.of(), PageRequest.of(0, 10), 0));
+
+        service.listAllBudgetItems(0, 10, null, 10L, 20L);
+
+        verify(budgetItemRepository).findByIsActiveTrueAndCategory_Project_IdAndProjectCompany_Id(10L, 20L, PageRequest.of(0, 10));
+    }
+
+    @Test
+    void listAllBudgetItems_shouldRejectUnknownProjectCompanyFilter() {
+        when(projectCompanyRepository.existsById(999L)).thenReturn(false);
+
+        assertThatThrownBy(() -> service.listAllBudgetItems(0, 10, null, null, 999L))
+                .isInstanceOf(br.com.gopro.api.exception.ResourceNotFoundException.class)
+                .hasMessageContaining("Empresa vinculada ao projeto nao encontrada");
+    }
+
     private BudgetItemRequestDTO request(Long categoryId, Long projectPeopleId, Long projectCompanyId) {
         return new BudgetItemRequestDTO(
                 categoryId,
@@ -164,5 +216,19 @@ class BudgetItemServiceImplTest {
         category.setId(categoryId);
         category.setProject(project);
         return category;
+    }
+
+    private BudgetItem savedItem(Long itemId, Long categoryId, Long projectId) {
+        BudgetItem item = new BudgetItem();
+        item.setId(itemId);
+        item.setCategory(category(categoryId, projectId));
+        item.setDescription("Servico especializado");
+        item.setQuantity(1);
+        item.setMonths(1);
+        item.setUnitCost(new BigDecimal("100.00"));
+        item.setPlannedAmount(new BigDecimal("100.00"));
+        item.setExecutedAmount(BigDecimal.ZERO);
+        item.setIsActive(true);
+        return item;
     }
 }
