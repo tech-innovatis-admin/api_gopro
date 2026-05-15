@@ -5,6 +5,7 @@ import br.com.gopro.api.dtos.BudgetItemResponseDTO;
 import br.com.gopro.api.dtos.BudgetItemUpdateDTO;
 import br.com.gopro.api.dtos.PageResponseDTO;
 import br.com.gopro.api.exception.BusinessException;
+import br.com.gopro.api.exception.FieldValidationException;
 import br.com.gopro.api.exception.ResourceNotFoundException;
 import br.com.gopro.api.mapper.BudgetItemMapper;
 import br.com.gopro.api.model.BudgetCategory;
@@ -12,6 +13,8 @@ import br.com.gopro.api.model.BudgetItem;
 import br.com.gopro.api.repository.BudgetCategoryRepository;
 import br.com.gopro.api.repository.BudgetItemRepository;
 import br.com.gopro.api.repository.GoalRepository;
+import br.com.gopro.api.repository.ProjectCompanyRepository;
+import br.com.gopro.api.repository.ProjectPeopleRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -19,7 +22,9 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -29,6 +34,8 @@ public class BudgetItemServiceImpl implements BudgetItemService {
     private final BudgetItemMapper budgetItemMapper;
     private final GoalRepository goalRepository;
     private final BudgetCategoryRepository budgetCategoryRepository;
+    private final ProjectCompanyRepository projectCompanyRepository;
+    private final ProjectPeopleRepository projectPeopleRepository;
     private final ProjectCompanyFinancialValidationService projectCompanyFinancialValidationService;
 
     @Override
@@ -171,13 +178,73 @@ public class BudgetItemServiceImpl implements BudgetItemService {
     }
 
     private void validateProjectCompanyBudgetItem(BudgetItem budgetItem, Long ignoredBudgetItemId) {
+        Long projectId = budgetItem.getCategory() != null && budgetItem.getCategory().getProject() != null
+                ? budgetItem.getCategory().getProject().getId()
+                : null;
+        validateBudgetItemLinks(projectId, budgetItem);
+
         projectCompanyFinancialValidationService.validateCanLinkToBudgetItem(
-                budgetItem.getCategory() != null && budgetItem.getCategory().getProject() != null
-                        ? budgetItem.getCategory().getProject().getId()
-                        : null,
+                projectId,
                 budgetItem.getProjectCompany() != null ? budgetItem.getProjectCompany().getId() : null,
                 budgetItem.getContractedAmount() != null ? budgetItem.getContractedAmount() : budgetItem.getPlannedAmount(),
                 ignoredBudgetItemId
         );
+    }
+
+    private void validateBudgetItemLinks(Long projectId, BudgetItem budgetItem) {
+        Map<String, String> fieldErrors = new LinkedHashMap<>();
+        Long projectPeopleId = budgetItem.getProjectPeople() != null ? budgetItem.getProjectPeople().getId() : null;
+        Long projectCompanyId = budgetItem.getProjectCompany() != null ? budgetItem.getProjectCompany().getId() : null;
+
+        if (projectPeopleId != null && projectCompanyId != null) {
+            fieldErrors.put("projectPeopleId", "Informe somente pessoa ou empresa vinculada.");
+            fieldErrors.put("projectCompanyId", "Informe somente pessoa ou empresa vinculada.");
+        }
+
+        if (projectPeopleId != null) {
+            validateProjectPeopleLink(projectId, projectPeopleId, fieldErrors);
+        }
+
+        if (projectCompanyId != null) {
+            validateProjectCompanyLink(projectId, projectCompanyId, fieldErrors);
+        }
+
+        if (!fieldErrors.isEmpty()) {
+            throw new FieldValidationException("Existem campos invalidos no formulario.", fieldErrors);
+        }
+    }
+
+    private void validateProjectPeopleLink(Long projectId, Long projectPeopleId, Map<String, String> fieldErrors) {
+        if (projectId == null) {
+            fieldErrors.putIfAbsent("projectPeopleId", "Nao foi possivel validar o vinculo da pessoa com o projeto.");
+            return;
+        }
+
+        Long linkedProjectId = projectPeopleRepository.findProjectIdById(projectPeopleId).orElse(null);
+        if (linkedProjectId == null) {
+            fieldErrors.putIfAbsent("projectPeopleId", "Pessoa vinculada ao projeto nao encontrada.");
+            return;
+        }
+
+        if (!projectId.equals(linkedProjectId)) {
+            fieldErrors.putIfAbsent("projectPeopleId", "Pessoa vinculada nao pertence ao projeto informado.");
+        }
+    }
+
+    private void validateProjectCompanyLink(Long projectId, Long projectCompanyId, Map<String, String> fieldErrors) {
+        if (projectId == null) {
+            fieldErrors.putIfAbsent("projectCompanyId", "Nao foi possivel validar a empresa contratada com o projeto.");
+            return;
+        }
+
+        Long linkedProjectId = projectCompanyRepository.findProjectIdById(projectCompanyId).orElse(null);
+        if (linkedProjectId == null) {
+            fieldErrors.putIfAbsent("projectCompanyId", "Empresa vinculada ao projeto nao encontrada.");
+            return;
+        }
+
+        if (!projectId.equals(linkedProjectId)) {
+            fieldErrors.putIfAbsent("projectCompanyId", "Empresa contratada nao pertence ao projeto informado.");
+        }
     }
 }
