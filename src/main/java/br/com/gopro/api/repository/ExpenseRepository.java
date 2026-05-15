@@ -17,6 +17,7 @@ public interface ExpenseRepository extends JpaRepository<Expense, Long> {
     Page<Expense> findAll(Pageable pageable);
     Page<Expense> findByIsActiveTrue(Pageable pageable);
     Page<Expense> findByIsActiveTrueAndProject_Id(Long projectId, Pageable pageable);
+    boolean existsByProjectCompany_IdAndIsActiveTrue(Long projectCompanyId);
 
     @Query("""
     select coalesce(e.project.id, i.project.id)

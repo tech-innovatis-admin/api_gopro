@@ -7,9 +7,12 @@ import br.com.gopro.api.dtos.ProjectCompanyResponseDTO;
 import br.com.gopro.api.dtos.ProjectCompanyUpdateDTO;
 import br.com.gopro.api.enums.ContractingStatusEnum;
 import br.com.gopro.api.exception.BusinessException;
+import br.com.gopro.api.exception.ConflictException;
 import br.com.gopro.api.exception.ResourceNotFoundException;
 import br.com.gopro.api.mapper.ProjectCompanyMapper;
 import br.com.gopro.api.model.ProjectCompany;
+import br.com.gopro.api.repository.BudgetItemRepository;
+import br.com.gopro.api.repository.ExpenseRepository;
 import br.com.gopro.api.repository.ProjectCompanyRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -26,6 +29,8 @@ public class ProjectCompanyServiceImpl implements ProjectCompanyService {
 
     private final ProjectCompanyRepository projectCompanyRepository;
     private final ProjectCompanyMapper projectCompanyMapper;
+    private final BudgetItemRepository budgetItemRepository;
+    private final ExpenseRepository expenseRepository;
 
     @Override
     public ProjectCompanyResponseDTO createProjectCompany(ProjectCompanyRequestDTO dto) {
@@ -112,6 +117,7 @@ public class ProjectCompanyServiceImpl implements ProjectCompanyService {
         if (!Boolean.TRUE.equals(projectCompany.getIsActive())) {
             throw new BusinessException("Vinculo projeto-empresa ja esta inativo");
         }
+        validateProjectCompanyHasNoFinancialLinks(id);
         projectCompany.setIsActive(false);
         projectCompanyRepository.save(projectCompany);
     }
@@ -167,5 +173,12 @@ public class ProjectCompanyServiceImpl implements ProjectCompanyService {
 
     private boolean isBlank(String value) {
         return value == null || value.trim().isEmpty();
+    }
+
+    private void validateProjectCompanyHasNoFinancialLinks(Long id) {
+        if (budgetItemRepository.existsByProjectCompany_IdAndIsActiveTrue(id)
+                || expenseRepository.existsByProjectCompany_IdAndIsActiveTrue(id)) {
+            throw new ConflictException("Nao e possivel remover esta empresa porque ela possui rubricas ou pagamentos vinculados.");
+        }
     }
 }
