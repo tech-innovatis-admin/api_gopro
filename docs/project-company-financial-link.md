@@ -33,6 +33,31 @@ saldoDisponivel = project_company.total_value
 
 Em edicao, o registro atual e ignorado na soma para evitar bloqueio falso ao salvar um valor inalterado.
 
+## Rubricas
+
+Itens de rubrica podem receber vinculo opcional com empresa contratada (`projectCompanyId`) ou pessoa vinculada ao projeto (`projectPeopleId`).
+
+O vinculo e validado contra o projeto da categoria da rubrica. Quando o identificador nao existe ou pertence a outro projeto, a API retorna erro de validacao com `fieldErrors.projectCompanyId` ou `fieldErrors.projectPeopleId`.
+
+Consulta por empresa contratada:
+
+```text
+GET /budget-items?projectCompanyId={id}
+```
+
+Sem o parametro `projectCompanyId`, a listagem mantem o comportamento anterior.
+
+## Remocao de empresa contratada
+
+A remocao/desativacao de `ProjectCompany` e bloqueada quando existir rubrica ou pagamento ativo vinculado por `projectCompanyId`.
+
+Resposta esperada:
+
+```text
+409 Conflict
+Nao e possivel remover esta empresa porque ela possui rubricas ou pagamentos vinculados.
+```
+
 ## Rollback e legado
 
 As novas colunas `expenses.project_company_id` e `budget_items.project_company_id` sao nullable para preservar dados existentes.
