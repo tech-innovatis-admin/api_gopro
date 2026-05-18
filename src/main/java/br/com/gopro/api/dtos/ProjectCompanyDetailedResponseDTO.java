@@ -35,6 +35,8 @@ public record ProjectCompanyDetailedResponseDTO(
         Long companyResponsiblePersonId,
         String companyResponsiblePersonFullName,
         String companyResponsiblePersonCpf,
-        String companyResponsiblePersonEmail
+        String companyResponsiblePersonEmail,
+        BigDecimal availableBalance,
+        BigDecimal executionPercentage
 ) {
 }

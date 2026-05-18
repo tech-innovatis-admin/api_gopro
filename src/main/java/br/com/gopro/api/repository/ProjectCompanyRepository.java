@@ -53,7 +53,60 @@ public interface ProjectCompanyRepository extends JpaRepository<ProjectCompany, 
                         rp.id,
                         rp.fullName,
                         rp.cpf,
-                        rp.email
+                        rp.email,
+                        (
+                            coalesce(
+                                (
+                                    select sum(coalesce(bi.contractedAmount, bi.plannedAmount))
+                                    from BudgetItem bi
+                                    where bi.isActive = true
+                                      and bi.category.project.id = p.id
+                                      and bi.projectCompany.id = pc.id
+                                ),
+                                0
+                            )
+                            -
+                            coalesce(
+                                (
+                                    select sum(e.amount)
+                                    from Expense e
+                                    where e.isActive = true
+                                      and e.project.id = p.id
+                                      and e.projectCompany.id = pc.id
+                                ),
+                                0
+                            )
+                        ),
+                        function(
+                            'round',
+                            (
+                                coalesce(
+                                    (
+                                        select sum(e.amount)
+                                        from Expense e
+                                        where e.isActive = true
+                                          and e.project.id = p.id
+                                          and e.projectCompany.id = pc.id
+                                    ),
+                                    0
+                                )
+                                /
+                                nullif(
+                                    coalesce(
+                                        (
+                                            select sum(coalesce(bi.contractedAmount, bi.plannedAmount))
+                                            from BudgetItem bi
+                                            where bi.isActive = true
+                                              and bi.category.project.id = p.id
+                                              and bi.projectCompany.id = pc.id
+                                        ),
+                                        0
+                                    ),
+                                    0
+                                )
+                            ) * 100,
+                            2
+                        )
                     )
                     from ProjectCompany pc
                     join pc.project p

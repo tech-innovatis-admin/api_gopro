@@ -33,6 +33,24 @@ saldoDisponivel = project_company.total_value
 
 Em edicao, o registro atual e ignorado na soma para evitar bloqueio falso ao salvar um valor inalterado.
 
+## DTO detalhado de empresa no projeto
+
+`GET /project-companies/detailed` retorna tambem os campos financeiros agregados por `project_company_id`:
+
+- `availableBalance`
+- `executionPercentage`
+
+Calculo aplicado no DTO detalhado:
+
+```text
+baseContratada = soma(coalesce(budget_items.contracted_amount, budget_items.planned_amount) ativos da empresa no projeto)
+totalPago = soma(expenses.amount ativos da empresa no projeto)
+availableBalance = baseContratada - totalPago
+executionPercentage = (totalPago / baseContratada) * 100
+```
+
+Quando `baseContratada = 0`, `executionPercentage` retorna `null`.
+
 ## Rubricas
 
 Itens de rubrica podem receber vinculo opcional com empresa contratada (`projectCompanyId`) ou pessoa vinculada ao projeto (`projectPeopleId`).
