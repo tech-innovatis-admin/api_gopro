@@ -63,6 +63,16 @@ public class BudgetItem {
 
     @Column(name = "notes", columnDefinition = "text")
     private String notes;
+
+    @Column(name = "webs", length = 255)
+    private String webs;
+
+    @Column(name = "service_order", length = 255)
+    private String serviceOrder;
+
+    @Column(name = "protocol", length = 255)
+    private String protocol;
+
     @Column(name = "is_active")
     private Boolean isActive;
 

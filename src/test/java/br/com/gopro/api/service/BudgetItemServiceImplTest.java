@@ -204,6 +204,9 @@ class BudgetItemServiceImplTest {
                 null,
                 new BigDecimal("100.00"),
                 null,
+                null,
+                null,
+                null,
                 1L
         );
     }

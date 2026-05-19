@@ -43,6 +43,7 @@ public class BudgetItemServiceImpl implements BudgetItemService {
         BudgetItem budgetItem = budgetItemMapper.toEntity(dto);
         applyCategoryReferenceOnCreate(budgetItem, dto.categoryId());
         applyGoalReferenceOnCreate(budgetItem, dto.goalId());
+        normalizeSimpleFields(budgetItem);
         budgetItem.setIsActive(true);
         applyDefaults(budgetItem);
         validateProjectCompanyBudgetItem(budgetItem, null);
@@ -110,6 +111,7 @@ public class BudgetItemServiceImpl implements BudgetItemService {
         budgetItemMapper.updateEntityFromDTO(dto, budgetItem);
         applyCategoryReferenceOnUpdate(budgetItem, dto.categoryId());
         applyGoalReferenceOnUpdate(budgetItem, dto.goalId());
+        normalizeSimpleFields(budgetItem);
         applyDefaults(budgetItem);
         validateProjectCompanyBudgetItem(budgetItem, budgetItem.getId());
         BudgetItem updated = budgetItemRepository.save(budgetItem);
@@ -161,6 +163,20 @@ public class BudgetItemServiceImpl implements BudgetItemService {
         if (budgetItem.getExecutedAmount() == null) {
             budgetItem.setExecutedAmount(BigDecimal.ZERO);
         }
+    }
+
+    private void normalizeSimpleFields(BudgetItem budgetItem) {
+        budgetItem.setWebs(trimToNull(budgetItem.getWebs()));
+        budgetItem.setServiceOrder(trimToNull(budgetItem.getServiceOrder()));
+        budgetItem.setProtocol(trimToNull(budgetItem.getProtocol()));
+    }
+
+    private String trimToNull(String value) {
+        if (value == null) {
+            return null;
+        }
+        String trimmed = value.trim();
+        return trimmed.isEmpty() ? null : trimmed;
     }
 
     private void applyCategoryReferenceOnCreate(BudgetItem budgetItem, Long categoryId) {

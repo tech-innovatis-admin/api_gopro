@@ -5,6 +5,7 @@ import br.com.gopro.api.dtos.ExpenseResponseDTO;
 import br.com.gopro.api.dtos.ExpenseUpdateDTO;
 import br.com.gopro.api.dtos.PageResponseDTO;
 import br.com.gopro.api.exception.BusinessException;
+import br.com.gopro.api.exception.FieldValidationException;
 import br.com.gopro.api.exception.ResourceNotFoundException;
 import br.com.gopro.api.mapper.ExpenseMapper;
 import br.com.gopro.api.model.Expense;
@@ -16,6 +17,7 @@ import br.com.gopro.api.repository.IncomeRepository;
 import br.com.gopro.api.repository.OrganizationRepository;
 import br.com.gopro.api.repository.PeopleRepository;
 import br.com.gopro.api.repository.ProjectCompanyRepository;
+import br.com.gopro.api.repository.ProjectPeopleRepository;
 import br.com.gopro.api.repository.ProjectRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -25,6 +27,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -38,6 +42,7 @@ public class ExpenseServiceImpl implements ExpenseService {
     private final PeopleRepository peopleRepository;
     private final OrganizationRepository organizationRepository;
     private final ProjectCompanyRepository projectCompanyRepository;
+    private final ProjectPeopleRepository projectPeopleRepository;
     private final DocumentRepository documentRepository;
     private final ProjectRepository projectRepository;
     private final ProjectFinancialSummaryService projectFinancialSummaryService;
@@ -48,6 +53,7 @@ public class ExpenseServiceImpl implements ExpenseService {
     public ExpenseResponseDTO createExpense(ExpenseRequestDTO dto) {
         Expense expense = expenseMapper.toEntity(dto);
         applyReferencesOnCreate(expense, dto);
+        validateExpenseLinksByProject(expense);
         expense.setIsActive(true);
         validateProjectCompanyPayment(expense, null);
         Expense saved = expenseRepository.save(expense);
@@ -103,6 +109,7 @@ public class ExpenseServiceImpl implements ExpenseService {
         Long previousBudgetItemId = expense.getBudgetItem() != null ? expense.getBudgetItem().getId() : null;
         expenseMapper.updateEntityFromDTO(dto, expense);
         applyReferencesOnUpdate(expense, dto);
+        validateExpenseLinksByProject(expense);
         validateProjectCompanyPayment(expense, expense.getId());
         Expense updated = expenseRepository.save(expense);
         projectFinancialSummaryService.refreshExpenseAggregates(
@@ -215,6 +222,54 @@ public class ExpenseServiceImpl implements ExpenseService {
                 expense.getAmount(),
                 ignoredExpenseId
         );
+    }
+
+    private void validateExpenseLinksByProject(Expense expense) {
+        Long projectId = expense.getProject() != null ? expense.getProject().getId() : null;
+        if (projectId == null) {
+            throw new BusinessException("Projeto da despesa e obrigatorio");
+        }
+
+        Map<String, String> fieldErrors = new LinkedHashMap<>();
+
+        Long projectCompanyId = expense.getProjectCompany() != null ? expense.getProjectCompany().getId() : null;
+        if (projectCompanyId != null) {
+            Long linkedProjectId = projectCompanyRepository.findProjectIdById(projectCompanyId).orElse(null);
+            if (linkedProjectId == null) {
+                fieldErrors.put("projectCompanyId", "Empresa contratada vinculada ao projeto nao encontrada.");
+            } else if (!projectId.equals(linkedProjectId)) {
+                fieldErrors.put("projectCompanyId", "Empresa contratada nao pertence ao projeto informado.");
+            }
+        }
+
+        Long personId = expense.getPerson() != null ? expense.getPerson().getId() : null;
+        if (personId != null && !projectPeopleRepository.existsByProject_IdAndPerson_IdAndIsActiveTrue(projectId, personId)) {
+            fieldErrors.put("personId", "Pessoa vinculada nao pertence ao projeto informado.");
+        }
+
+        Long budgetItemId = expense.getBudgetItem() != null ? expense.getBudgetItem().getId() : null;
+        if (budgetItemId != null) {
+            Long linkedProjectId = budgetItemRepository.findProjectIdById(budgetItemId).orElse(null);
+            if (linkedProjectId == null) {
+                fieldErrors.put("budgetItemId", "Item orcamentario nao encontrado.");
+            } else if (!projectId.equals(linkedProjectId)) {
+                fieldErrors.put("budgetItemId", "Item orcamentario nao pertence ao projeto informado.");
+            }
+        }
+
+        Long categoryId = expense.getCategory() != null ? expense.getCategory().getId() : null;
+        if (categoryId != null) {
+            Long linkedProjectId = budgetCategoryRepository.findProjectIdById(categoryId).orElse(null);
+            if (linkedProjectId == null) {
+                fieldErrors.put("categoryId", "Categoria orcamentaria nao encontrada.");
+            } else if (!projectId.equals(linkedProjectId)) {
+                fieldErrors.put("categoryId", "Categoria orcamentaria nao pertence ao projeto informado.");
+            }
+        }
+
+        if (!fieldErrors.isEmpty()) {
+            throw new FieldValidationException("Existem campos invalidos no formulario.", fieldErrors);
+        }
     }
 
     private Long resolveProjectId(Long projectId, Long incomeId) {

@@ -26,6 +26,9 @@ public class BudgetItemMapper {
         budgetItem.setBeneficiaryType(dto.beneficiaryType());
         budgetItem.setContractedAmount(dto.contractedAmount());
         budgetItem.setNotes(dto.notes());
+        budgetItem.setWebs(dto.webs());
+        budgetItem.setServiceOrder(dto.serviceOrder());
+        budgetItem.setProtocol(dto.protocol());
         budgetItem.setCreatedBy(dto.createdBy());
         return budgetItem;
     }
@@ -46,6 +49,9 @@ public class BudgetItemMapper {
                 budgetItem.getBeneficiaryType(),
                 budgetItem.getContractedAmount(),
                 budgetItem.getNotes(),
+                budgetItem.getWebs(),
+                budgetItem.getServiceOrder(),
+                budgetItem.getProtocol(),
                 budgetItem.getIsActive(),
                 budgetItem.getCreatedAt(),
                 budgetItem.getUpdatedAt(),
@@ -90,6 +96,15 @@ public class BudgetItemMapper {
         }
         if (dto.notes() != null) {
             budgetItem.setNotes(dto.notes());
+        }
+        if (dto.webs() != null) {
+            budgetItem.setWebs(dto.webs());
+        }
+        if (dto.serviceOrder() != null) {
+            budgetItem.setServiceOrder(dto.serviceOrder());
+        }
+        if (dto.protocol() != null) {
+            budgetItem.setProtocol(dto.protocol());
         }
         if (dto.updatedBy() != null) {
             budgetItem.setUpdatedBy(dto.updatedBy());

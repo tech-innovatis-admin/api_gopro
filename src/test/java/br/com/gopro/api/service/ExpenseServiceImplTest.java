@@ -3,9 +3,11 @@ package br.com.gopro.api.service;
 import br.com.gopro.api.dtos.ExpenseRequestDTO;
 import br.com.gopro.api.dtos.ExpenseResponseDTO;
 import br.com.gopro.api.dtos.ExpenseUpdateDTO;
+import br.com.gopro.api.enums.ContractingStatusEnum;
 import br.com.gopro.api.enums.ExpensePaidByEnum;
 import br.com.gopro.api.enums.ExpensePaymentStatusEnum;
 import br.com.gopro.api.exception.BusinessException;
+import br.com.gopro.api.exception.FieldValidationException;
 import br.com.gopro.api.mapper.ExpenseMapper;
 import br.com.gopro.api.model.BudgetCategory;
 import br.com.gopro.api.model.BudgetItem;
@@ -14,6 +16,7 @@ import br.com.gopro.api.model.Income;
 import br.com.gopro.api.model.Organization;
 import br.com.gopro.api.model.People;
 import br.com.gopro.api.model.Project;
+import br.com.gopro.api.model.ProjectCompany;
 import br.com.gopro.api.repository.BudgetCategoryRepository;
 import br.com.gopro.api.repository.BudgetItemRepository;
 import br.com.gopro.api.repository.DocumentRepository;
@@ -22,6 +25,7 @@ import br.com.gopro.api.repository.IncomeRepository;
 import br.com.gopro.api.repository.OrganizationRepository;
 import br.com.gopro.api.repository.PeopleRepository;
 import br.com.gopro.api.repository.ProjectCompanyRepository;
+import br.com.gopro.api.repository.ProjectPeopleRepository;
 import br.com.gopro.api.repository.ProjectRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -37,7 +41,11 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -67,6 +75,9 @@ class ExpenseServiceImplTest {
 
     @Mock
     private ProjectCompanyRepository projectCompanyRepository;
+
+    @Mock
+    private ProjectPeopleRepository projectPeopleRepository;
 
     @Mock
     private DocumentRepository documentRepository;
@@ -114,6 +125,8 @@ class ExpenseServiceImplTest {
         when(projectRepository.getReferenceById(55L)).thenReturn(project);
         when(budgetItemRepository.getReferenceById(11L)).thenReturn(budgetItem);
         when(budgetCategoryRepository.getReferenceById(12L)).thenReturn(category);
+        when(budgetItemRepository.findProjectIdById(11L)).thenReturn(Optional.of(55L));
+        when(budgetCategoryRepository.findProjectIdById(12L)).thenReturn(Optional.of(55L));
         when(expenseRepository.save(any(Expense.class))).thenAnswer(invocation -> {
             Expense saved = invocation.getArgument(0);
             saved.setId(321L);
@@ -166,6 +179,8 @@ class ExpenseServiceImplTest {
         when(projectRepository.getReferenceById(55L)).thenReturn(project);
         when(budgetItemRepository.getReferenceById(11L)).thenReturn(budgetItem(11L));
         when(budgetCategoryRepository.getReferenceById(12L)).thenReturn(category(12L));
+        when(budgetItemRepository.findProjectIdById(11L)).thenReturn(Optional.of(55L));
+        when(budgetCategoryRepository.findProjectIdById(12L)).thenReturn(Optional.of(55L));
         when(expenseRepository.save(any(Expense.class))).thenAnswer(invocation -> invocation.getArgument(0));
         when(expenseMapper.toDTO(any(Expense.class))).thenAnswer(invocation -> toDto(invocation.getArgument(0)));
 
@@ -241,6 +256,8 @@ class ExpenseServiceImplTest {
 
         when(expenseRepository.findById(777L)).thenReturn(Optional.of(existingExpense));
         when(projectRepository.getReferenceById(77L)).thenReturn(project(77L));
+        when(budgetItemRepository.findProjectIdById(11L)).thenReturn(Optional.of(77L));
+        when(budgetCategoryRepository.findProjectIdById(12L)).thenReturn(Optional.of(77L));
         doAnswer(invocation -> {
             ExpenseUpdateDTO update = invocation.getArgument(0);
             Expense expense = invocation.getArgument(1);
@@ -322,6 +339,11 @@ class ExpenseServiceImplTest {
         );
 
         when(expenseRepository.findById(778L)).thenReturn(Optional.of(existingExpense));
+        when(projectRepository.getReferenceById(10L)).thenReturn(project(10L));
+        when(budgetItemRepository.getReferenceById(11L)).thenReturn(budgetItem(11L));
+        when(budgetCategoryRepository.getReferenceById(12L)).thenReturn(category(12L));
+        when(budgetItemRepository.findProjectIdById(11L)).thenReturn(Optional.of(10L));
+        when(budgetCategoryRepository.findProjectIdById(12L)).thenReturn(Optional.of(10L));
         doAnswer(invocation -> null)
                 .when(expenseMapper).updateEntityFromDTO(any(ExpenseUpdateDTO.class), any(Expense.class));
         when(expenseRepository.save(any(Expense.class))).thenAnswer(invocation -> invocation.getArgument(0));
@@ -335,6 +357,342 @@ class ExpenseServiceImplTest {
         assertThat(result.personId()).isNull();
         assertThat(result.projectCompanyId()).isNull();
         assertThat(result.organizationId()).isNull();
+    }
+
+    @Test
+    void createExpense_shouldPersistWhenProjectCompanyBelongsToSameProject() {
+        ExpenseRequestDTO dto = new ExpenseRequestDTO(
+                55L,
+                11L,
+                12L,
+                null,
+                LocalDate.of(2026, 3, 17),
+                1,
+                new BigDecimal("250.00"),
+                ExpensePaymentStatusEnum.PAGO,
+                ExpensePaidByEnum.INNOVATIS,
+                null,
+                500L,
+                null,
+                "Servico empresa projeto",
+                null,
+                null,
+                null,
+                7L
+        );
+
+        Expense mappedExpense = new Expense();
+        mappedExpense.setAmount(new BigDecimal("250.00"));
+        Project project = project(55L);
+        BudgetItem budgetItem = budgetItem(11L);
+        BudgetCategory category = category(12L);
+        ProjectCompany projectCompany = projectCompany(500L, 55L, ContractingStatusEnum.CONTRATADA, true);
+
+        when(expenseMapper.toEntity(dto)).thenReturn(mappedExpense);
+        when(projectRepository.getReferenceById(55L)).thenReturn(project);
+        when(budgetItemRepository.getReferenceById(11L)).thenReturn(budgetItem);
+        when(budgetCategoryRepository.getReferenceById(12L)).thenReturn(category);
+        when(projectCompanyRepository.getReferenceById(500L)).thenReturn(projectCompany);
+        when(projectCompanyRepository.findProjectIdById(500L)).thenReturn(Optional.of(55L));
+        when(budgetItemRepository.findProjectIdById(11L)).thenReturn(Optional.of(55L));
+        when(budgetCategoryRepository.findProjectIdById(12L)).thenReturn(Optional.of(55L));
+        when(expenseRepository.save(any(Expense.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(expenseMapper.toDTO(any(Expense.class))).thenAnswer(invocation -> toDto(invocation.getArgument(0)));
+
+        ExpenseResponseDTO result = service.createExpense(dto);
+
+        assertThat(result.projectCompanyId()).isEqualTo(500L);
+        verify(expenseRepository).save(any(Expense.class));
+    }
+
+    @Test
+    void createExpense_shouldPersistWhenPersonBelongsToSameProject() {
+        ExpenseRequestDTO dto = new ExpenseRequestDTO(
+                55L,
+                11L,
+                12L,
+                null,
+                LocalDate.of(2026, 3, 17),
+                1,
+                new BigDecimal("120.00"),
+                ExpensePaymentStatusEnum.PAGO,
+                ExpensePaidByEnum.INNOVATIS,
+                700L,
+                null,
+                null,
+                "Servico pessoa projeto",
+                null,
+                null,
+                null,
+                7L
+        );
+
+        Expense mappedExpense = new Expense();
+        mappedExpense.setAmount(new BigDecimal("120.00"));
+        People person = new People();
+        person.setId(700L);
+
+        when(expenseMapper.toEntity(dto)).thenReturn(mappedExpense);
+        when(projectRepository.getReferenceById(55L)).thenReturn(project(55L));
+        when(budgetItemRepository.getReferenceById(11L)).thenReturn(budgetItem(11L));
+        when(budgetCategoryRepository.getReferenceById(12L)).thenReturn(category(12L));
+        when(peopleRepository.getReferenceById(700L)).thenReturn(person);
+        when(projectPeopleRepository.existsByProject_IdAndPerson_IdAndIsActiveTrue(55L, 700L)).thenReturn(true);
+        when(budgetItemRepository.findProjectIdById(11L)).thenReturn(Optional.of(55L));
+        when(budgetCategoryRepository.findProjectIdById(12L)).thenReturn(Optional.of(55L));
+        when(expenseRepository.save(any(Expense.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(expenseMapper.toDTO(any(Expense.class))).thenAnswer(invocation -> toDto(invocation.getArgument(0)));
+
+        ExpenseResponseDTO result = service.createExpense(dto);
+
+        assertThat(result.personId()).isEqualTo(700L);
+        verify(expenseRepository).save(any(Expense.class));
+    }
+
+    @Test
+    void createExpense_shouldRejectWhenProjectCompanyBelongsToAnotherProject() {
+        ExpenseRequestDTO dto = new ExpenseRequestDTO(
+                55L,
+                11L,
+                12L,
+                null,
+                LocalDate.of(2026, 3, 17),
+                1,
+                new BigDecimal("250.00"),
+                ExpensePaymentStatusEnum.PAGO,
+                ExpensePaidByEnum.INNOVATIS,
+                null,
+                500L,
+                null,
+                "Servico empresa errada",
+                null,
+                null,
+                null,
+                7L
+        );
+
+        ProjectCompany projectCompany = projectCompany(500L, 99L, ContractingStatusEnum.CONTRATADA, true);
+        when(expenseMapper.toEntity(dto)).thenReturn(new Expense());
+        when(projectRepository.getReferenceById(55L)).thenReturn(project(55L));
+        when(budgetItemRepository.getReferenceById(11L)).thenReturn(budgetItem(11L));
+        when(budgetCategoryRepository.getReferenceById(12L)).thenReturn(category(12L));
+        when(projectCompanyRepository.getReferenceById(500L)).thenReturn(projectCompany);
+        when(projectCompanyRepository.findProjectIdById(500L)).thenReturn(Optional.of(99L));
+        when(budgetItemRepository.findProjectIdById(11L)).thenReturn(Optional.of(55L));
+        when(budgetCategoryRepository.findProjectIdById(12L)).thenReturn(Optional.of(55L));
+
+        assertThatThrownBy(() -> service.createExpense(dto))
+                .isInstanceOf(FieldValidationException.class)
+                .satisfies(exception -> assertThat(((FieldValidationException) exception).getFieldErrors())
+                        .containsEntry("projectCompanyId", "Empresa contratada nao pertence ao projeto informado."));
+
+        verify(expenseRepository, never()).save(any(Expense.class));
+    }
+
+    @Test
+    void createExpense_shouldRejectWhenPersonDoesNotBelongToProject() {
+        ExpenseRequestDTO dto = new ExpenseRequestDTO(
+                55L,
+                11L,
+                12L,
+                null,
+                LocalDate.of(2026, 3, 17),
+                1,
+                new BigDecimal("120.00"),
+                ExpensePaymentStatusEnum.PAGO,
+                ExpensePaidByEnum.INNOVATIS,
+                700L,
+                null,
+                null,
+                "Servico pessoa errada",
+                null,
+                null,
+                null,
+                7L
+        );
+
+        People person = new People();
+        person.setId(700L);
+
+        when(expenseMapper.toEntity(dto)).thenReturn(new Expense());
+        when(projectRepository.getReferenceById(55L)).thenReturn(project(55L));
+        when(budgetItemRepository.getReferenceById(11L)).thenReturn(budgetItem(11L));
+        when(budgetCategoryRepository.getReferenceById(12L)).thenReturn(category(12L));
+        when(peopleRepository.getReferenceById(700L)).thenReturn(person);
+        when(projectPeopleRepository.existsByProject_IdAndPerson_IdAndIsActiveTrue(55L, 700L)).thenReturn(false);
+        when(budgetItemRepository.findProjectIdById(11L)).thenReturn(Optional.of(55L));
+        when(budgetCategoryRepository.findProjectIdById(12L)).thenReturn(Optional.of(55L));
+
+        assertThatThrownBy(() -> service.createExpense(dto))
+                .isInstanceOf(FieldValidationException.class)
+                .satisfies(exception -> assertThat(((FieldValidationException) exception).getFieldErrors())
+                        .containsEntry("personId", "Pessoa vinculada nao pertence ao projeto informado."));
+
+        verify(expenseRepository, never()).save(any(Expense.class));
+    }
+
+    @Test
+    void createExpense_shouldRejectWhenBudgetItemBelongsToAnotherProject() {
+        ExpenseRequestDTO dto = new ExpenseRequestDTO(
+                55L,
+                11L,
+                12L,
+                null,
+                LocalDate.of(2026, 3, 17),
+                1,
+                new BigDecimal("120.00"),
+                ExpensePaymentStatusEnum.PAGO,
+                ExpensePaidByEnum.INNOVATIS,
+                null,
+                null,
+                null,
+                "Item errado",
+                null,
+                null,
+                null,
+                7L
+        );
+
+        when(expenseMapper.toEntity(dto)).thenReturn(new Expense());
+        when(projectRepository.getReferenceById(55L)).thenReturn(project(55L));
+        when(budgetItemRepository.getReferenceById(11L)).thenReturn(budgetItem(11L));
+        when(budgetCategoryRepository.getReferenceById(12L)).thenReturn(category(12L));
+        when(budgetItemRepository.findProjectIdById(11L)).thenReturn(Optional.of(99L));
+        when(budgetCategoryRepository.findProjectIdById(12L)).thenReturn(Optional.of(55L));
+
+        assertThatThrownBy(() -> service.createExpense(dto))
+                .isInstanceOf(FieldValidationException.class)
+                .satisfies(exception -> assertThat(((FieldValidationException) exception).getFieldErrors())
+                        .containsEntry("budgetItemId", "Item orcamentario nao pertence ao projeto informado."));
+
+        verify(expenseRepository, never()).save(any(Expense.class));
+    }
+
+    @Test
+    void createExpense_shouldRejectWhenCategoryBelongsToAnotherProject() {
+        ExpenseRequestDTO dto = new ExpenseRequestDTO(
+                55L,
+                11L,
+                12L,
+                null,
+                LocalDate.of(2026, 3, 17),
+                1,
+                new BigDecimal("120.00"),
+                ExpensePaymentStatusEnum.PAGO,
+                ExpensePaidByEnum.INNOVATIS,
+                null,
+                null,
+                null,
+                "Categoria errada",
+                null,
+                null,
+                null,
+                7L
+        );
+
+        when(expenseMapper.toEntity(dto)).thenReturn(new Expense());
+        when(projectRepository.getReferenceById(55L)).thenReturn(project(55L));
+        when(budgetItemRepository.getReferenceById(11L)).thenReturn(budgetItem(11L));
+        when(budgetCategoryRepository.getReferenceById(12L)).thenReturn(category(12L));
+        when(budgetItemRepository.findProjectIdById(11L)).thenReturn(Optional.of(55L));
+        when(budgetCategoryRepository.findProjectIdById(12L)).thenReturn(Optional.of(99L));
+
+        assertThatThrownBy(() -> service.createExpense(dto))
+                .isInstanceOf(FieldValidationException.class)
+                .satisfies(exception -> assertThat(((FieldValidationException) exception).getFieldErrors())
+                        .containsEntry("categoryId", "Categoria orcamentaria nao pertence ao projeto informado."));
+
+        verify(expenseRepository, never()).save(any(Expense.class));
+    }
+
+    @Test
+    void createExpense_shouldRejectWhenProjectCompanyIsCancelled() {
+        ExpenseRequestDTO dto = new ExpenseRequestDTO(
+                55L,
+                11L,
+                12L,
+                null,
+                LocalDate.of(2026, 3, 17),
+                1,
+                new BigDecimal("120.00"),
+                ExpensePaymentStatusEnum.PAGO,
+                ExpensePaidByEnum.INNOVATIS,
+                null,
+                500L,
+                null,
+                "Empresa cancelada",
+                null,
+                null,
+                null,
+                7L
+        );
+
+        ProjectCompany projectCompany = projectCompany(500L, 55L, ContractingStatusEnum.CANCELADA, true);
+
+        Expense mappedExpense = new Expense();
+        mappedExpense.setAmount(new BigDecimal("120.00"));
+        when(expenseMapper.toEntity(dto)).thenReturn(mappedExpense);
+        when(projectRepository.getReferenceById(55L)).thenReturn(project(55L));
+        when(budgetItemRepository.getReferenceById(11L)).thenReturn(budgetItem(11L));
+        when(budgetCategoryRepository.getReferenceById(12L)).thenReturn(category(12L));
+        when(projectCompanyRepository.getReferenceById(500L)).thenReturn(projectCompany);
+        when(projectCompanyRepository.findProjectIdById(500L)).thenReturn(Optional.of(55L));
+        when(budgetItemRepository.findProjectIdById(11L)).thenReturn(Optional.of(55L));
+        when(budgetCategoryRepository.findProjectIdById(12L)).thenReturn(Optional.of(55L));
+        doThrow(new BusinessException("Status da empresa contratada nao permite novos vinculos financeiros."))
+                .when(projectCompanyFinancialValidationService)
+                .validateCanReceivePayment(eq(55L), eq(500L), any(BigDecimal.class), isNull());
+
+        assertThatThrownBy(() -> service.createExpense(dto))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("Status da empresa contratada nao permite novos vinculos financeiros.");
+
+        verify(expenseRepository, never()).save(any(Expense.class));
+    }
+
+    @Test
+    void createExpense_shouldRejectWhenProjectCompanyIsInactive() {
+        ExpenseRequestDTO dto = new ExpenseRequestDTO(
+                55L,
+                11L,
+                12L,
+                null,
+                LocalDate.of(2026, 3, 17),
+                1,
+                new BigDecimal("120.00"),
+                ExpensePaymentStatusEnum.PAGO,
+                ExpensePaidByEnum.INNOVATIS,
+                null,
+                500L,
+                null,
+                "Empresa inativa",
+                null,
+                null,
+                null,
+                7L
+        );
+
+        ProjectCompany projectCompany = projectCompany(500L, 55L, ContractingStatusEnum.CONTRATADA, false);
+
+        Expense mappedExpense = new Expense();
+        mappedExpense.setAmount(new BigDecimal("120.00"));
+        when(expenseMapper.toEntity(dto)).thenReturn(mappedExpense);
+        when(projectRepository.getReferenceById(55L)).thenReturn(project(55L));
+        when(budgetItemRepository.getReferenceById(11L)).thenReturn(budgetItem(11L));
+        when(budgetCategoryRepository.getReferenceById(12L)).thenReturn(category(12L));
+        when(projectCompanyRepository.getReferenceById(500L)).thenReturn(projectCompany);
+        when(projectCompanyRepository.findProjectIdById(500L)).thenReturn(Optional.of(55L));
+        when(budgetItemRepository.findProjectIdById(11L)).thenReturn(Optional.of(55L));
+        when(budgetCategoryRepository.findProjectIdById(12L)).thenReturn(Optional.of(55L));
+        doThrow(new BusinessException("Empresa contratada inativa nao pode receber vinculos financeiros."))
+                .when(projectCompanyFinancialValidationService)
+                .validateCanReceivePayment(eq(55L), eq(500L), any(BigDecimal.class), isNull());
+
+        assertThatThrownBy(() -> service.createExpense(dto))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("Empresa contratada inativa nao pode receber vinculos financeiros.");
+
+        verify(expenseRepository, never()).save(any(Expense.class));
     }
 
     private Project project(Long id) {
@@ -380,5 +738,15 @@ class ExpenseServiceImplTest {
                 expense.getCreatedBy(),
                 expense.getUpdatedBy()
         );
+    }
+
+    private ProjectCompany projectCompany(Long id, Long projectId, ContractingStatusEnum status, boolean active) {
+        ProjectCompany projectCompany = new ProjectCompany();
+        projectCompany.setId(id);
+        projectCompany.setProject(project(projectId));
+        projectCompany.setStatus(status);
+        projectCompany.setIsActive(active);
+        projectCompany.setTotalValue(new BigDecimal("1000.00"));
+        return projectCompany;
     }
 }
